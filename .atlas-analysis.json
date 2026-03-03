@@ -1,0 +1,118 @@
+{
+  "projectType": "saas",
+  "projectName": "MKing Admin",
+  "projectDescription": "Modern admin dashboard for managing products, clients, quotations, employees, and business operations.",
+  "theme": "mint",
+  "primaryColor": "#1976d2",
+  "lightColor": "#42a5f5",
+  "darkColor": "#1565c0",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": ["introduction", "quickstart", "installation"]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/authentication",
+              "features/products",
+              "features/clients",
+              "features/quotations",
+              "features/employees",
+              "features/calendar"
+            ]
+          },
+          {
+            "group": "User Management",
+            "pages": [
+              "user-management/roles-permissions",
+              "user-management/users"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/environment",
+              "configuration/catalogs",
+              "configuration/api-integration"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Development",
+        "groups": [
+          {
+            "group": "Architecture",
+            "pages": [
+              "development/project-structure",
+              "development/state-management",
+              "development/routing"
+            ]
+          },
+          {
+            "group": "Components",
+            "pages": [
+              "development/components-overview",
+              "development/forms",
+              "development/data-grids"
+            ]
+          },
+          {
+            "group": "Services",
+            "pages": [
+              "development/api-services",
+              "development/authentication-service"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api/authentication",
+              "api/products",
+              "api/clients",
+              "api/quotations",
+              "api/employees",
+              "api/users-roles",
+              "api/catalogs",
+              "api/inventory"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Role-based authentication and authorization",
+    "Product catalog management with images and inventory",
+    "Client relationship management (CRM)",
+    "Quotation generation with PDF export",
+    "Employee management with photo uploads",
+    "User and permission management",
+    "Calendar and event scheduling",
+    "Catalog management (categories, colors, sizes)",
+    "Responsive Material-UI interface",
+    "Real-time data grids with AG Grid"
+  ],
+  "publicApiSurface": [
+    "Authentication: LoginService, getInfoUser",
+    "Products: getProducts, saveProduct, updateProduct, deleteProduct",
+    "Clients: getClients, saveClient, updateClient, deleteClient",
+    "Quotations: getAdminQuotations, createAdminQuotation, downloadAdminQuotationPdf",
+    "Employees: getEmployees, saveEmployee, updateEmployee, deleteEmployee",
+    "Users: getUsers, deleteUser",
+    "Roles: getRoles, createRole, updateRole, deleteRole",
+    "Permissions: getPermissions, createPermission, deletePermission",
+    "Catalogs: getCategories, getColors, getSizes, getRegimenFiscal, getCfdi",
+    "Inventory: getInventoryByProduct, saveInventory, updateInventory"
+  ]
+}
