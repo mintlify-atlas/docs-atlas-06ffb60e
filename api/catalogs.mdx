@@ -1,0 +1,324 @@
+---
+title: Catalogs
+description: API endpoints for tax regimes, CFDI codes, units, and warehouses
+---
+
+## Tax Regimes (Regimen Fiscal)
+
+### List All Tax Regimes
+
+<RequestExample>
+```bash GET /regimen_fiscal
+curl -X GET "${VITE_BASE_URL}/regimen_fiscal" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Retrieves all available tax regimes for Mexican tax compliance.
+
+**Authentication Required:** Yes
+
+### Response
+
+<ResponseField name="data" type="array">
+  Array of tax regime objects
+  
+  <ResponseField name="id" type="number">
+    Tax regime code (e.g., 601, 603, 612)
+  </ResponseField>
+  
+  <ResponseField name="code" type="string">
+    SAT tax regime code
+  </ResponseField>
+  
+  <ResponseField name="description" type="string">
+    Tax regime description
+  </ResponseField>
+  
+  <ResponseField name="moral" type="boolean">
+    Applicable to legal entities (moral persons)
+  </ResponseField>
+  
+  <ResponseField name="fisica" type="boolean">
+    Applicable to individuals (physical persons)
+  </ResponseField>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "data": [
+    {
+      "id": 601,
+      "code": "601",
+      "description": "General de Ley Personas Morales",
+      "moral": true,
+      "fisica": false
+    },
+    {
+      "id": 612,
+      "code": "612",
+      "description": "Personas Físicas con Actividades Empresariales y Profesionales",
+      "moral": false,
+      "fisica": true
+    },
+    {
+      "id": 626,
+      "code": "626",
+      "description": "Régimen Simplificado de Confianza",
+      "moral": true,
+      "fisica": true
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+## CFDI Use Codes
+
+### List All CFDI Codes
+
+<RequestExample>
+```bash GET /cfdi
+curl -X GET "${VITE_BASE_URL}/cfdi" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Retrieves all CFDI (Comprobante Fiscal Digital por Internet) use codes.
+
+**Authentication Required:** Yes
+
+### Response
+
+<ResponseField name="data" type="array">
+  Array of CFDI code objects
+  
+  <ResponseField name="code" type="string">
+    CFDI use code (e.g., "G01", "G03", "D10")
+  </ResponseField>
+  
+  <ResponseField name="description" type="string">
+    Description of the CFDI use
+  </ResponseField>
+  
+  <ResponseField name="applies_to_moral" type="boolean">
+    Applicable to legal entities
+  </ResponseField>
+  
+  <ResponseField name="applies_to_fisica" type="boolean">
+    Applicable to individuals
+  </ResponseField>
+  
+  <ResponseField name="regimen_fiscal" type="array">
+    Compatible tax regime codes
+  </ResponseField>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "data": [
+    {
+      "code": "G01",
+      "description": "Adquisición de mercancías",
+      "applies_to_moral": true,
+      "applies_to_fisica": true,
+      "regimen_fiscal": ["601", "603", "612"]
+    },
+    {
+      "code": "G03",
+      "description": "Gastos en general",
+      "applies_to_moral": true,
+      "applies_to_fisica": true,
+      "regimen_fiscal": ["601", "603", "606", "612"]
+    },
+    {
+      "code": "D10",
+      "description": "Pagos por servicios educativos (colegiaturas)",
+      "applies_to_moral": false,
+      "applies_to_fisica": true,
+      "regimen_fiscal": ["605", "606"]
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+## Units
+
+### List All Units
+
+<RequestExample>
+```bash GET /unit
+curl -X GET "${VITE_BASE_URL}/unit" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Retrieves all available measurement units for products.
+
+**Authentication Required:** Yes
+
+### Response
+
+<ResponseField name="data" type="array">
+  Array of unit objects
+  
+  <ResponseField name="id" type="number">
+    Unit unique identifier
+  </ResponseField>
+  
+  <ResponseField name="code" type="string">
+    Unit code (e.g., "PZ", "KG", "M")
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    Unit name
+  </ResponseField>
+  
+  <ResponseField name="description" type="string">
+    Unit description
+  </ResponseField>
+  
+  <ResponseField name="symbol" type="string">
+    Unit symbol
+  </ResponseField>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "data": [
+    {
+      "id": 1,
+      "code": "PZ",
+      "name": "Pieza",
+      "description": "Unidad de pieza",
+      "symbol": "pz"
+    },
+    {
+      "id": 2,
+      "code": "KG",
+      "name": "Kilogramo",
+      "description": "Unidad de peso",
+      "symbol": "kg"
+    },
+    {
+      "id": 3,
+      "code": "M",
+      "name": "Metro",
+      "description": "Unidad de longitud",
+      "symbol": "m"
+    },
+    {
+      "id": 4,
+      "code": "LT",
+      "name": "Litro",
+      "description": "Unidad de volumen",
+      "symbol": "L"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+## Warehouses
+
+### List All Warehouses
+
+<RequestExample>
+```bash GET /warehouse
+curl -X GET "${VITE_BASE_URL}/warehouse" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Retrieves all warehouse locations.
+
+**Authentication Required:** Yes
+
+### Response
+
+<ResponseField name="data" type="array">
+  Array of warehouse objects
+  
+  <ResponseField name="id" type="number">
+    Warehouse unique identifier
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    Warehouse name
+  </ResponseField>
+  
+  <ResponseField name="code" type="string">
+    Warehouse code or identifier
+  </ResponseField>
+  
+  <ResponseField name="address" type="string">
+    Warehouse physical address
+  </ResponseField>
+  
+  <ResponseField name="city" type="string">
+    City location
+  </ResponseField>
+  
+  <ResponseField name="state" type="string">
+    State or province
+  </ResponseField>
+  
+  <ResponseField name="country" type="string">
+    Country
+  </ResponseField>
+  
+  <ResponseField name="status" type="string">
+    Warehouse status (active, inactive)
+  </ResponseField>
+  
+  <ResponseField name="manager" type="string">
+    Warehouse manager name
+  </ResponseField>
+  
+  <ResponseField name="contact_phone" type="string">
+    Contact phone number
+  </ResponseField>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "Almacén Principal",
+      "code": "WH-001",
+      "address": "Calle Industrial 100",
+      "city": "Ciudad de México",
+      "state": "CDMX",
+      "country": "México",
+      "status": "active",
+      "manager": "Carlos Ramírez",
+      "contact_phone": "+52 55 1111 2222"
+    },
+    {
+      "id": 2,
+      "name": "Almacén Monterrey",
+      "code": "WH-002",
+      "address": "Av. Constitución 500",
+      "city": "Monterrey",
+      "state": "Nuevo León",
+      "country": "México",
+      "status": "active",
+      "manager": "Ana López",
+      "contact_phone": "+52 81 3333 4444"
+    }
+  ]
+}
+```
+</ResponseExample>

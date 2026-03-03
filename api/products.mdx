@@ -1,0 +1,550 @@
+---
+title: Products
+description: API endpoints for managing products, categories, colors, and sizes
+---
+
+## Products
+
+### List All Products
+
+<RequestExample>
+```bash GET /product
+curl -X GET "${VITE_BASE_URL}/product" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Retrieves a list of all products.
+
+**Authentication Required:** Yes
+
+### Response
+
+<ResponseField name="data" type="array">
+  Array of product objects
+  
+  <ResponseField name="id" type="number">
+    Product unique identifier
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    Product name
+  </ResponseField>
+  
+  <ResponseField name="description" type="string">
+    Product description
+  </ResponseField>
+  
+  <ResponseField name="price" type="number">
+    Product price
+  </ResponseField>
+  
+  <ResponseField name="category_id" type="number">
+    Associated category ID
+  </ResponseField>
+  
+  <ResponseField name="images" type="array">
+    Array of product images
+  </ResponseField>
+  
+  <ResponseField name="colors" type="array">
+    Available colors for the product
+  </ResponseField>
+  
+  <ResponseField name="sizes" type="array">
+    Available sizes for the product
+  </ResponseField>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "T-Shirt Premium",
+      "description": "High quality cotton t-shirt",
+      "price": 299.99,
+      "category_id": 1,
+      "images": [
+        {
+          "id": 1,
+          "url": "https://example.com/image.jpg",
+          "is_primary": true
+        }
+      ],
+      "colors": ["Red", "Blue", "Green"],
+      "sizes": ["S", "M", "L", "XL"]
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+### Get Product by ID
+
+<RequestExample>
+```bash GET /product/{id}
+curl -X GET "${VITE_BASE_URL}/product/1" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Retrieves a single product by its ID.
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Product ID
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="number">
+  Product unique identifier
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Product name
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Product description
+</ResponseField>
+
+<ResponseField name="price" type="number">
+  Product price
+</ResponseField>
+
+<ResponseField name="category" type="object">
+  Category details
+</ResponseField>
+
+<ResponseField name="images" type="array">
+  Product images
+</ResponseField>
+
+---
+
+### Create Product
+
+<RequestExample>
+```bash POST /product
+curl -X POST "${VITE_BASE_URL}/product" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: multipart/form-data" \
+  -F "name=New Product" \
+  -F "description=Product description" \
+  -F "price=499.99" \
+  -F "category_id=1" \
+  -F "images[]=@/path/to/image1.jpg" \
+  -F "images[]=@/path/to/image2.jpg"
+```
+</RequestExample>
+
+Creates a new product with images.
+
+**Authentication Required:** Yes  
+**Content-Type:** `multipart/form-data`
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Product name
+</ParamField>
+
+<ParamField body="description" type="string">
+  Product description
+</ParamField>
+
+<ParamField body="price" type="number" required>
+  Product price
+</ParamField>
+
+<ParamField body="category_id" type="number" required>
+  Category ID
+</ParamField>
+
+<ParamField body="images" type="file[]">
+  Array of image files
+</ParamField>
+
+<ParamField body="colors" type="array">
+  Array of color IDs
+</ParamField>
+
+<ParamField body="sizes" type="array">
+  Array of size IDs
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="number">
+  Created product ID
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success message
+</ResponseField>
+
+---
+
+### Update Product
+
+<RequestExample>
+```bash PUT /product/{id}
+curl -X PUT "${VITE_BASE_URL}/product/1" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: multipart/form-data" \
+  -F "name=Updated Product" \
+  -F "price=599.99"
+```
+</RequestExample>
+
+Updates an existing product.
+
+**Authentication Required:** Yes  
+**Content-Type:** `multipart/form-data`
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Product ID to update
+</ParamField>
+
+### Request Body
+
+Same fields as Create Product (all optional for updates)
+
+---
+
+### Delete Product
+
+<RequestExample>
+```bash DELETE /product/{id}
+curl -X DELETE "${VITE_BASE_URL}/product/1" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Deletes a product.
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Product ID to delete
+</ParamField>
+
+---
+
+## Product Images
+
+### Set Primary Image
+
+<RequestExample>
+```bash PUT /product_image/{id}/primary
+curl -X PUT "${VITE_BASE_URL}/product_image/5/primary" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Sets an image as the primary image for a product.
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Image ID
+</ParamField>
+
+---
+
+### Delete Product Image
+
+<RequestExample>
+```bash DELETE /product_image/{id}
+curl -X DELETE "${VITE_BASE_URL}/product_image/5" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Deletes a product image.
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Image ID to delete
+</ParamField>
+
+---
+
+## Categories
+
+### List All Categories
+
+<RequestExample>
+```bash GET /product_category
+curl -X GET "${VITE_BASE_URL}/product_category" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Retrieves all product categories.
+
+**Authentication Required:** Yes
+
+---
+
+### Get Category by ID
+
+<RequestExample>
+```bash GET /product_category/{id}
+curl -X GET "${VITE_BASE_URL}/product_category/1" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Category ID
+</ParamField>
+
+---
+
+### Create Category
+
+<RequestExample>
+```bash POST /product_category
+curl -X POST "${VITE_BASE_URL}/product_category" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "New Category",
+    "description": "Category description"
+  }'
+```
+</RequestExample>
+
+Creates a new product category.
+
+**Authentication Required:** Yes
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Category name
+</ParamField>
+
+<ParamField body="description" type="string">
+  Category description
+</ParamField>
+
+---
+
+### Update Category
+
+<RequestExample>
+```bash PUT /product_category/{id}
+curl -X PUT "${VITE_BASE_URL}/product_category/1" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Updated Category"}'
+```
+</RequestExample>
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Category ID
+</ParamField>
+
+---
+
+### Delete Category
+
+<RequestExample>
+```bash DELETE /product_category/{id}
+curl -X DELETE "${VITE_BASE_URL}/product_category/1" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Category ID
+</ParamField>
+
+---
+
+## Colors
+
+### List All Colors
+
+<RequestExample>
+```bash GET /product_color
+curl -X GET "${VITE_BASE_URL}/product_color" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+**Authentication Required:** Yes
+
+---
+
+### Get Color by ID
+
+<RequestExample>
+```bash GET /product_color/{id}
+curl -X GET "${VITE_BASE_URL}/product_color/1" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+**Authentication Required:** Yes
+
+---
+
+### Create Color
+
+<RequestExample>
+```bash POST /product_color
+curl -X POST "${VITE_BASE_URL}/product_color" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Navy Blue", "hex": "#001f3f"}'
+```
+</RequestExample>
+
+**Authentication Required:** Yes
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Color name
+</ParamField>
+
+<ParamField body="hex" type="string">
+  Hex color code (e.g., #FF0000)
+</ParamField>
+
+---
+
+### Update Color
+
+<RequestExample>
+```bash PUT /product_color/{id}
+curl -X PUT "${VITE_BASE_URL}/product_color/1" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+**Authentication Required:** Yes
+
+---
+
+### Delete Color
+
+<RequestExample>
+```bash DELETE /product_color/{id}
+curl -X DELETE "${VITE_BASE_URL}/product_color/1" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+**Authentication Required:** Yes
+
+---
+
+## Sizes
+
+### List All Sizes
+
+<RequestExample>
+```bash GET /product_size
+curl -X GET "${VITE_BASE_URL}/product_size" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+**Authentication Required:** Yes
+
+---
+
+### Get Size by ID
+
+<RequestExample>
+```bash GET /product_size/{id}
+curl -X GET "${VITE_BASE_URL}/product_size/1" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+**Authentication Required:** Yes
+
+---
+
+### Create Size
+
+<RequestExample>
+```bash POST /product_size
+curl -X POST "${VITE_BASE_URL}/product_size" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "XXL", "code": "XXL"}'
+```
+</RequestExample>
+
+**Authentication Required:** Yes
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Size name
+</ParamField>
+
+<ParamField body="code" type="string">
+  Size code (e.g., S, M, L, XL)
+</ParamField>
+
+---
+
+### Update Size
+
+<RequestExample>
+```bash PUT /product_size/{id}
+curl -X PUT "${VITE_BASE_URL}/product_size/1" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+**Authentication Required:** Yes
+
+---
+
+### Delete Size
+
+<RequestExample>
+```bash DELETE /product_size/{id}
+curl -X DELETE "${VITE_BASE_URL}/product_size/1" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+**Authentication Required:** Yes

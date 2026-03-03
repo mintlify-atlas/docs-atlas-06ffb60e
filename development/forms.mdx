@@ -1,0 +1,683 @@
+---
+title: "Form Handling"
+description: "Complete guide to form handling with react-hook-form, validation, and Material-UI integration"
+---
+
+## Overview
+
+MKing Admin uses **react-hook-form** for performant, flexible form handling with built-in validation support. Forms are integrated with Material-UI components and use custom validation functions alongside pattern-based validation.
+
+## Basic Form Setup
+
+### Simple Form Example
+
+```tsx
+import { useForm, Controller } from 'react-hook-form';
+import { TextField, Button } from '@mui/material';
+
+interface FormInputs {
+  name: string;
+  email: string;
+}
+
+export const BasicForm = () => {
+  const { control, handleSubmit, formState: { errors } } = useForm<FormInputs>({
+    defaultValues: {
+      name: '',
+      email: ''
+    }
+  });
+
+  const onSubmit = (data: FormInputs) => {
+    console.log(data);
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <Controller
+        name="name"
+        control={control}
+        render={({ field }) => (
+          <TextField
+            {...field}
+            label="Name"
+            error={!!errors.name}
+            helperText={errors.name?.message}
+            fullWidth
+          />
+        )}
+      />
+      <Button type="submit">Submit</Button>
+    </form>
+  );
+};
+```
+
+## Product Form Example
+
+The Product form demonstrates complex form handling with file uploads, multi-select fields, and custom validation.
+
+### Form Interface
+
+```tsx src/pages/Product/components/FormProduct.tsx
+interface FormInputs {
+  name: string;
+  description?: string | null;
+  sku: string;
+  price: number;
+  img_product: (string | File)[];
+  category_id: number;
+  status: boolean;
+  colors: number[];
+  sizes: number[];
+}
+```
+
+### Form Initialization
+
+```tsx src/pages/Product/components/FormProduct.tsx
+const { control, handleSubmit, reset, formState: { errors }, setError, clearErrors } = 
+  useForm<FormInputs>({
+    defaultValues: {
+      name: '',
+      description: '',
+      sku: '',
+      price: 0,
+      img_product: [],
+      category_id: 0,
+      status: true,
+      colors: [],
+      sizes: [],
+    }
+  });
+```
+
+### Custom Validation Function
+
+```tsx src/pages/Product/components/FormProduct.tsx
+const validateForm = (data: FormInputs) => {
+  const errors: Record<string, string> = {};
+
+  if (!data.name) errors.name = 'El nombre es requerido';
+  if (!data.sku) errors.sku = 'El SKU es requerido';
+  if (data.price === undefined || data.price < 0) 
+    errors.price = 'El precio debe ser mayor a 0';
+  if (!data.colors || data.colors.length === 0) 
+    errors.colors = 'Debe seleccionar al menos un color';
+  if (!data.category_id) 
+    errors.category_id = 'La categoría es requerida';
+  if (!data.img_product || data.img_product.length === 0) 
+    errors.img_product = 'Debe subir al menos una imagen';
+  if (!data.sizes || data.sizes.length === 0) 
+    errors.sizes = 'Debe seleccionar al menos una talla';
+
+  return errors;
+};
+```
+
+### Form Submission
+
+```tsx src/pages/Product/components/FormProduct.tsx
+const onSubmit = async (data: FormInputs) => {
+  const validationErrors = validateForm(data);
+  if (Object.keys(validationErrors).length > 0) {
+    Object.entries(validationErrors).forEach(([key, message]) => {
+      setError(key as keyof FormInputs, { type: 'manual', message });
+    });
+    return;
+  }
+
+  clearErrors();
+  setSaving(true);
+  try {
+    const formData = new FormData();
+
+    // Format the data before sending
+    const submitData = {
+      ...data,
+      status: data.status ? 1 : 0,
+      colors: data.colors || undefined,
+      sizes: data.sizes || undefined,
+    };
+
+    // Append all form fields
+    Object.keys(submitData).forEach(key => {
+      if (key === 'colors' || key === 'sizes') {
+        const arr = submitData[key] as number[];
+        arr.forEach((id, index) => {
+          formData.append(`${key}[${index}]`, id.toString());
+        });
+      } else if (key !== 'img_product' && submitData[key] !== undefined) {
+        formData.append(key, submitData[key]?.toString() || '');
+      }
+    });
+
+    // Handle images
+    const imagesArray: File[] = [];
+    for (const image of selectedImages) {
+      if (image instanceof File) {
+        if (image.size > 2 * 1024 * 1024) {
+          return toast.error('La imagen no debe pesar más de 2 megabytes');
+        }
+        imagesArray.push(image);
+      }
+    }
+    imagesArray.forEach((image, index) => {
+      formData.append(`images[${index}]`, image);
+    });
+
+    if (selectedProduct) {
+      await updateProduct(selectedProduct.id, formData);
+      toast.success('Producto actualizado exitosamente');
+    } else {
+      await saveProduct(formData);
+      toast.success('Producto guardado exitosamente');
+    }
+    onClose();
+  } catch (error) {
+    toast.error('Ocurrió un error al guardar el producto');
+  } finally {
+    setSaving(false);
+  }
+};
+```
+
+## Form Field Types
+
+### Text Input
+
+```tsx
+<Controller
+  name="name"
+  control={control}
+  render={({ field }) => (
+    <TextField
+      {...field}
+      label="Nombre"
+      error={!!errors.name}
+      helperText={errors.name?.message}
+      variant="outlined"
+      fullWidth
+      value={field.value || ''}
+    />
+  )}
+/>
+```
+
+### Number Input
+
+```tsx src/pages/Product/components/FormProduct.tsx
+<Controller
+  name="price"
+  control={control}
+  render={({ field }) => (
+    <TextField
+      {...field}
+      label="Precio"
+      type="number"
+      fullWidth
+      inputProps={{ step: "0.01", min: "0" }}
+      error={!!errors.price}
+      helperText={errors.price?.message}
+      value={field.value || ''}
+    />
+  )}
+/>
+```
+
+### Select Dropdown
+
+```tsx src/pages/Product/components/FormProduct.tsx
+<FormControl fullWidth error={!!errors.category_id}>
+  <InputLabel id="category-label">Categoría</InputLabel>
+  <Controller
+    name="category_id"
+    control={control}
+    render={({ field }) => (
+      <Select
+        {...field}
+        labelId="category-label"
+        label="Categoría"
+        value={field.value || ''}
+      >
+        {categories.map((category) => (
+          <MenuItem key={category.id} value={category.id}>
+            {category.name}
+          </MenuItem>
+        ))}
+      </Select>
+    )}
+  />
+  {errors.category_id && (
+    <FormHelperText>{errors.category_id.message}</FormHelperText>
+  )}
+</FormControl>
+```
+
+### Multi-Select with Chips
+
+```tsx src/pages/Product/components/FormProduct.tsx
+<FormControl fullWidth error={!!errors.colors}>
+  <InputLabel id="color-label">Colores</InputLabel>
+  <Controller
+    name="colors"
+    control={control}
+    render={({ field }) => (
+      <Select
+        {...field}
+        labelId="color-label"
+        multiple
+        value={field.value || []}
+        onChange={(event) => {
+          const value = event.target.value;
+          field.onChange(
+            typeof value === 'string' ? value.split(',').map(Number) : value
+          );
+        }}
+        input={<OutlinedInput label="Colores" />}
+        renderValue={(selected) => (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            {selected.map((colorId: number) => {
+              const color = colors.find(col => col.id === colorId);
+              return (
+                <Chip
+                  key={colorId}
+                  label={color?.name || colorId}
+                  size="small"
+                  sx={{
+                    background: color?.hex_code || '#ccc',
+                    color: '#fff'
+                  }}
+                />
+              );
+            })}
+          </Box>
+        )}
+      >
+        {colors.map((color) => (
+          <MenuItem key={color.id} value={color.id}>
+            {color.name}
+          </MenuItem>
+        ))}
+      </Select>
+    )}
+  />
+  {errors.colors && (
+    <FormHelperText>{errors.colors.message}</FormHelperText>
+  )}
+</FormControl>
+```
+
+### Switch/Toggle
+
+```tsx src/pages/Product/components/FormProduct.tsx
+<Controller
+  name="status"
+  control={control}
+  render={({ field }) => (
+    <FormControlLabel
+      control={
+        <Switch
+          {...field}
+          checked={Boolean(field.value)}
+          color="success"
+        />
+      }
+      label={field.value ? "Activo" : "Inactivo"}
+    />
+  )}
+/>
+```
+
+## Client Form with Validation Patterns
+
+### Pattern-Based Validation
+
+```tsx src/pages/client/components/FormClient.tsx
+const validateForm = (data: FormInputs, isEditing: boolean = false) => {
+  const errors: Record<string, string> = {};
+
+  if (!data.name) errors.name = 'El nombre es requerido';
+  if (!data.email) errors.email = 'El email es requerido';
+  
+  if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+    errors.email = 'El email no es válido';
+  }
+
+  if (data.rfc && data.rfc.length < 12) {
+    errors.rfc = 'El RFC debe tener al menos 12 caracteres';
+  }
+  if (data.rfc && data.rfc.length > 13) {
+    errors.rfc = 'El RFC no debe exceder 13 caracteres';
+  }
+  if (data.postalCode && data.postalCode.length !== 5) {
+    errors.postalCode = 'El código postal debe tener 5 dígitos';
+  }
+
+  return errors;
+};
+```
+
+### Phone Number Field with Format Validation
+
+```tsx src/pages/client/components/FormClient.tsx
+<Controller
+  name="phone"
+  control={control}
+  rules={{
+    pattern: {
+      value: /^[0-9]{10}$/,
+      message: "El teléfono debe tener 10 dígitos numéricos"
+    }
+  }}
+  render={({ field: { onChange, value, ...field } }) => (
+    <TextField
+      {...field}
+      value={value || ''}
+      onChange={(e) => {
+        const val = e.target.value;
+        if (val === '' || (/^[0-9]+$/.test(val) && val.length <= 10)) {
+          onChange(val);
+        }
+      }}
+      label="Teléfono"
+      variant="outlined"
+      fullWidth
+      error={!!errors.phone}
+      helperText={errors.phone?.message}
+      inputProps={{ maxLength: 10, inputMode: 'numeric' }}
+    />
+  )}
+/>
+```
+
+### Postal Code Field
+
+```tsx src/pages/client/components/FormClient.tsx
+<Controller
+  name="postalCode"
+  control={control}
+  rules={{
+    pattern: {
+      value: /^[0-9]{5}$/,
+      message: "El código postal debe tener 5 dígitos numéricos"
+    }
+  }}
+  render={({ field: { onChange, value, ...field } }) => (
+    <TextField
+      {...field}
+      value={value || ''}
+      onChange={(e) => {
+        const val = e.target.value;
+        if (val === '' || (/^[0-9]+$/.test(val) && val.length <= 5)) {
+          onChange(val);
+        }
+      }}
+      label="Código Postal"
+      error={!!errors.postalCode}
+      helperText={errors.postalCode?.message}
+      variant="outlined"
+      fullWidth
+      inputProps={{ maxLength: 5, inputMode: 'numeric' }}
+    />
+  )}
+/>
+```
+
+## Employee Form with Tabs
+
+### Multi-Tab Form Structure
+
+<Tabs>
+  <Tab title="Setup">
+    ```tsx src/pages/Employees/components/EmployeeFormDialog.tsx
+    import { Tabs, Tab } from '@mui/material';
+
+    const [activeTab, setActiveTab] = useState(0);
+
+    const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+      setActiveTab(newValue);
+    };
+
+    <Tabs value={activeTab} onChange={handleTabChange}>
+      <Tab label="General" />
+      <Tab label="Dirección" />
+      <Tab label="Laboral" />
+    </Tabs>
+    ```
+  </Tab>
+  <Tab title="Tab Panels">
+    ```tsx src/pages/Employees/components/EmployeeFormDialog.tsx
+    function TabPanel(props: TabPanelProps) {
+      const { children, value, index, ...other } = props;
+
+      return (
+        <div
+          role="tabpanel"
+          hidden={value !== index}
+          id={`simple-tabpanel-${index}`}
+          aria-labelledby={`simple-tab-${index}`}
+          {...other}
+        >
+          {value === index && (
+            <Box sx={{ p: 3 }}>
+              {children}
+            </Box>
+          )}
+        </div>
+      );
+    }
+    ```
+  </Tab>
+  <Tab title="Usage">
+    ```tsx
+    <TabPanel value={activeTab} index={0}>
+      {/* General Information Fields */}
+    </TabPanel>
+    <TabPanel value={activeTab} index={1}>
+      {/* Address Fields */}
+    </TabPanel>
+    <TabPanel value={activeTab} index={2}>
+      {/* Labor Information Fields */}
+    </TabPanel>
+    ```
+  </Tab>
+</Tabs>
+
+### Date Picker Integration
+
+```tsx src/pages/Employees/components/EmployeeFormDialog.tsx
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { es } from 'date-fns/locale';
+
+<LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
+  <DatePicker
+    label="Fecha Nacimiento *"
+    value={formData.employee.birth_date}
+    onChange={(newValue) => handleChange('employee', 'birth_date', newValue)}
+    format="dd/MM/yyyy"
+    slotProps={{
+      textField: {
+        fullWidth: true,
+        error: !!errors.employee.birth_date,
+        helperText: errors.employee.birth_date
+      }
+    }}
+  />
+</LocalizationProvider>
+```
+
+### Complex Validation Patterns
+
+```tsx src/pages/Employees/components/EmployeeFormDialog.tsx
+const RFC_PATTERN = /^[A-ZÑ&]{3,4}\d{6}[A-V1-9][A-Z1-9][0-9A]$/;
+const CURP_PATTERN = /^[A-Z][AEIOUX][A-Z]{2}\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])[HM](AS|B[CS]|C[CLMSH]|D[FG]|G[TR]|HG|JC|M[CNS]|N[ETL]|OC|PL|Q[TR]|S[PLR]|T[CSL]|VZ|YN|ZS)[B-DF-HJ-NP-TV-Z]{3}[A-Z\d]\d$/;
+const NSS_PATTERN = /^\d{11}$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const validateField = (section: string, field: string, value: any): string => {
+  if (section === 'employee') {
+    if (field === 'rfc' && value) {
+      if (!RFC_PATTERN.test(value.toUpperCase())) 
+        return 'El RFC no tiene un formato válido';
+    }
+    if (field === 'curp' && value) {
+      if (!CURP_PATTERN.test(value.toUpperCase())) 
+        return 'La CURP no tiene un formato válido';
+    }
+  }
+  return '';
+};
+```
+
+## Form Reset and Data Loading
+
+### Loading Existing Data
+
+```tsx src/pages/Product/components/FormProduct.tsx
+useEffect(() => {
+  if (open && selectedProduct && selectedProduct.id) {
+    setLoadingProduct(true);
+    getProduct(selectedProduct.id)
+      .then(res => {
+        const product = res.data;
+        const formattedProduct = {
+          ...product,
+          status: Boolean(product.status),
+          colors: product.colors?.map((col: any) => col.id) || [],
+          sizes: product.sizes?.map((sz: any) => sz.id) || [],
+          img_product: product.images?.map((img: any) => img.url) || []
+        };
+        reset(formattedProduct);
+        setSelectedImages(product.images?.map((img: any) => img.url) || []);
+      })
+      .finally(() => setLoadingProduct(false));
+  }
+  if (open && !selectedProduct) {
+    reset({
+      name: '',
+      description: '',
+      sku: '',
+      price: 0,
+      img_product: [],
+      category_id: 0,
+      status: true,
+      colors: [],
+      sizes: [],
+    });
+    setSelectedImages([]);
+  }
+}, [open, selectedProduct, reset]);
+```
+
+## File Upload Handling
+
+### Image Upload Component
+
+```tsx src/pages/Product/components/FormProduct.tsx
+<Controller
+  name="img_product"
+  control={control}
+  render={({ field }) => (
+    <ImageUploader
+      selectedImages={selectedImages}
+      onImagesSelect={(files: (File | string)[]) => {
+        setSelectedImages(files);
+        field.onChange(files);
+      }}
+      selectedProduct={selectedProduct}
+      deleteImg={deleteImg}
+      onPrimaryImageChange={(imageId) => {
+        setPrimaryImageId(imageId);
+      }}
+      onImageUpdate={onImageUpdate}
+    />
+  )}
+/>
+```
+
+### File Validation
+
+```tsx src/pages/Product/components/FormProduct.tsx
+for (const image of selectedImages) {
+  if (image instanceof File) {
+    if (image.size > 2 * 1024 * 1024) {
+      selectedImages.splice(selectedImages.indexOf(image), 1);
+      setSaving(false);
+      return toast.error('La imagen no debe pesar más de 2 megabytes');
+    } else {
+      imagesArray.push(image);
+    }
+  }
+}
+imagesArray.forEach((image, index) => {
+  formData.append(`images[${index}]`, image);
+});
+```
+
+## Accordion Form Sections
+
+```tsx src/pages/client/components/FormClient.tsx
+import { Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+
+<Accordion>
+  <AccordionSummary
+    expandIcon={<ExpandMoreIcon />}
+    aria-controls="fiscal-details-content"
+    id="fiscal-details-header"
+  >
+    <Typography variant="h6">Detalles Fiscales y Dirección</Typography>
+  </AccordionSummary>
+  <AccordionDetails>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {/* Form fields */}
+    </Box>
+  </AccordionDetails>
+</Accordion>
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Validation Strategy">
+    - Use inline validation with react-hook-form rules for simple cases
+    - Implement custom validation functions for complex business logic
+    - Display errors immediately after field blur or on submit
+    - Provide helpful error messages in the user's language
+  </Accordion>
+
+  <Accordion title="Performance Optimization">
+    - Use Controller only when needed for complex integrations
+    - Register simple inputs directly without Controller
+    - Implement debouncing for expensive validations
+    - Reset forms properly to avoid memory leaks
+  </Accordion>
+
+  <Accordion title="User Experience">
+    - Show loading states during async operations
+    - Provide clear feedback on success/error
+    - Use appropriate input types (number, email, tel)
+    - Implement input masks for formatted fields
+  </Accordion>
+
+  <Accordion title="Accessibility">
+    - Use proper ARIA labels
+    - Ensure keyboard navigation works
+    - Connect error messages to inputs
+    - Provide helpful placeholder text
+  </Accordion>
+</AccordionGroup>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Component Overview" icon="shapes" href="/development/components-overview">
+    Learn about the overall component architecture
+  </Card>
+  <Card title="Data Grids" icon="table" href="/development/data-grids">
+    Explore AG Grid implementation patterns
+  </Card>
+</CardGroup>

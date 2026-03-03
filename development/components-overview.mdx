@@ -1,0 +1,327 @@
+---
+title: "Component Architecture Overview"
+description: "Understanding the component architecture, design patterns, and organization in MKing Admin"
+---
+
+## Architecture Overview
+
+MKing Admin follows a modular component architecture built on Material-UI (MUI), with form handling via react-hook-form and data visualization through AG Grid. The application uses TypeScript for type safety and follows a feature-based organizational structure.
+
+### Technology Stack
+
+<CardGroup cols={2}>
+  <Card title="Material-UI (MUI)" icon="palette">
+    Component library providing pre-built React components with Material Design
+  </Card>
+  <Card title="react-hook-form" icon="file-pen">
+    Performant form library with built-in validation support
+  </Card>
+  <Card title="AG Grid" icon="table">
+    Enterprise-grade data grid for complex table requirements
+  </Card>
+  <Card title="Framer Motion" icon="wand-magic-sparkles">
+    Animation library for smooth UI transitions
+  </Card>
+</CardGroup>
+
+## Directory Structure
+
+The component architecture follows a feature-based organization:
+
+```
+src/
+├── pages/
+│   ├── Product/
+│   │   ├── ProductPage.tsx          # Main page component with AG Grid
+│   │   └── components/
+│   │       ├── FormProduct.tsx       # Product form dialog
+│   │       ├── ImageUploader.tsx     # Custom image upload component
+│   │       └── InventoryModal.tsx    # Inventory management modal
+│   ├── client/
+│   │   ├── ClientPage.tsx
+│   │   └── components/
+│   │       └── FormClient.tsx        # Client form with fiscal data
+│   ├── Employees/
+│   │   ├── EmployeesPage.tsx
+│   │   └── components/
+│   │       └── EmployeeFormDialog.tsx # Multi-tab employee form
+│   └── ...
+├── services/
+│   └── admin.service.ts              # API service layer
+└── store/
+    └── pageTitleStore.ts             # Zustand state management
+```
+
+## Component Patterns
+
+### Page Components
+
+Page components serve as container components that:
+- Manage state for data fetching and form dialogs
+- Configure AG Grid with column definitions
+- Handle CRUD operations
+- Integrate with the page title store
+
+```tsx src/pages/Product/ProductPage.tsx
+import { Box, Fab, Tooltip } from "@mui/material";
+import { AgGridReact } from "ag-grid-react";
+import { usePageTitleStore } from "../../store/pageTitleStore";
+import { getProducts } from "../../services/admin.service";
+
+export const ProductPage = () => {
+  const { setTitle } = usePageTitleStore();
+  const [rowData, setRowData] = useState<any>([]);
+  const [open, setOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+
+  useEffect(() => {
+    setTitle("Productos");
+    getProducts()
+      .then((res) => {
+        setRowData(res.data.products);
+      });
+  }, []);
+
+  return (
+    <Box sx={{ pl: 9, pt: 9 }}>
+      <AgGridReact
+        rowData={rowData}
+        columnDefs={columnDefs}
+        defaultColDef={defaultColDef}
+        pagination={true}
+      />
+    </Box>
+  );
+};
+```
+
+### Form Dialog Components
+
+Form dialogs use Material-UI Dialog components with react-hook-form:
+
+```tsx
+import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { useForm, Controller } from 'react-hook-form';
+
+interface FormInputs {
+  name: string;
+  email: string;
+  price: number;
+}
+
+export const FormDialog = ({ open, onClose }) => {
+  const { control, handleSubmit, formState: { errors } } = useForm<FormInputs>();
+
+  const onSubmit = async (data: FormInputs) => {
+    // Handle form submission
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md">
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <DialogTitle>Form Title</DialogTitle>
+        <DialogContent>
+          {/* Form fields */}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button type="submit">Save</Button>
+        </DialogActions>
+      </form>
+    </Dialog>
+  );
+};
+```
+
+## TypeScript Interfaces
+
+### Form Input Types
+
+All forms define TypeScript interfaces for type safety:
+
+```tsx src/pages/Product/components/FormProduct.tsx
+interface FormInputs {
+  name: string;
+  description?: string | null;
+  sku: string;
+  price: number;
+  img_product: (string | File)[];
+  category_id: number;
+  status: boolean;
+  colors: number[];
+  sizes: number[];
+}
+
+interface ProductDialogProps {
+  open: boolean;
+  onClose: () => void;
+  selectedProduct: any | null;
+  handleSave?: (product: any) => void;
+  categories?: any[];
+  colors?: any[];
+  sizes?: any[];
+}
+```
+
+### Client Form Types
+
+```tsx src/pages/client/components/FormClient.tsx
+interface FormInputs {
+  // Client basic data
+  name: string;
+  lastName: string;
+  email: string;
+  password?: string;
+  // Client details
+  phone?: string;
+  rfc?: string;
+  businessName?: string;
+  taxRegime?: string;
+  cfdiUse?: string;
+  street?: string;
+  exteriorNumber?: string;
+  interiorNumber?: string;
+  neighborhood?: string;
+  municipality?: string;
+  state?: string;
+  postalCode?: string;
+  gender?: 'Hombre' | 'Mujer';
+  imgClient?: File | string;
+  person_type?: 'persona fisica' | 'persona moral';
+}
+```
+
+## State Management
+
+### Local Component State
+
+Forms maintain their own state using React hooks:
+
+```tsx
+const [saving, setSaving] = useState(false);
+const [loadingProduct, setLoadingProduct] = useState(false);
+const [selectedImages, setSelectedImages] = useState<(File | string)[]>([]);
+```
+
+### Global State with Zustand
+
+The application uses Zustand for global state management:
+
+```tsx
+import { usePageTitleStore } from "../../store/pageTitleStore";
+
+const { setTitle } = usePageTitleStore();
+
+useEffect(() => {
+  setTitle("Page Title");
+}, [setTitle]);
+```
+
+## Loading States
+
+### Fade Transitions
+
+Loading overlays use Framer Motion's Fade component:
+
+```tsx src/pages/Product/components/FormProduct.tsx
+import Fade from '@mui/material/Fade';
+import CircularProgress from '@mui/material/CircularProgress';
+
+<Fade
+  in={saving}
+  style={{
+    transitionDelay: saving ? '200ms' : '0ms',
+  }}
+  unmountOnExit
+>
+  <Box
+    sx={{
+      position: "absolute",
+      top: 0, left: 0, right: 0, bottom: 0,
+      bgcolor: "rgba(255,255,255,0.7)",
+      zIndex: 10,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center"
+    }}
+  >
+    <CircularProgress />
+    <Typography sx={{ mt: 2 }}>Saving...</Typography>
+  </Box>
+</Fade>
+```
+
+### Loading Dialogs
+
+```tsx src/pages/Employees/components/EmployeeFormDialog.tsx
+if (loadingProduct) {
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md">
+      <Box sx={{ p: 6, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <CircularProgress />
+        <Typography sx={{ mt: 2 }}>Loading data...</Typography>
+      </Box>
+    </Dialog>
+  );
+}
+```
+
+## Service Layer
+
+All API calls are abstracted into service functions:
+
+```tsx src/services/admin.service.ts
+// Product services
+export const getProducts = () => axios.get('/api/products');
+export const getProduct = (id: number) => axios.get(`/api/products/${id}`);
+export const saveProduct = (data: FormData) => axios.post('/api/products', data);
+export const updateProduct = (id: number, data: FormData) => 
+  axios.put(`/api/products/${id}`, data);
+export const delProduct = (id: number) => axios.delete(`/api/products/${id}`);
+
+// Client services
+export const getClients = () => axios.get('/api/clients');
+export const saveClient = (data: any) => axios.post('/api/clients', data);
+export const updateClient = (id: number, data: any) => 
+  axios.put(`/api/clients/${id}`, data);
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Type Safety">
+    - Define TypeScript interfaces for all form inputs
+    - Use proper typing for component props
+    - Leverage type inference where possible
+  </Accordion>
+
+  <Accordion title="Component Composition">
+    - Keep page components focused on orchestration
+    - Extract reusable UI into separate components
+    - Use controlled components with react-hook-form
+  </Accordion>
+
+  <Accordion title="Error Handling">
+    - Display validation errors inline with form fields
+    - Use toast notifications for operation feedback
+    - Implement loading states for async operations
+  </Accordion>
+
+  <Accordion title="Performance">
+    - Memoize column definitions with useMemo
+    - Use react-hook-form to minimize re-renders
+    - Implement pagination for large datasets
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Form Handling" icon="file-pen" href="/development/forms">
+    Learn about react-hook-form implementation and validation patterns
+  </Card>
+  <Card title="Data Grids" icon="table" href="/development/data-grids">
+    Explore AG Grid configuration and custom cell renderers
+  </Card>
+</CardGroup>

@@ -1,0 +1,114 @@
+---
+title: Introduction to MKing Admin
+description: A modern admin dashboard for managing products, clients, quotations, employees, and business operations
+---
+
+# Introduction to MKing Admin
+
+MKing Admin is a comprehensive business management platform built with modern web technologies. It provides a powerful admin dashboard for managing products, clients, quotations, employees, and day-to-day business operations.
+
+## What is MKing Admin?
+
+MKing Admin is a full-featured React application that streamlines business operations through an intuitive interface. Whether you're managing a product catalog, tracking client relationships, generating quotations, or coordinating employee schedules, MKing Admin provides the tools you need in one unified platform.
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Product management" icon="box">
+    Comprehensive product catalog with inventory tracking, categorization, and pricing management
+  </Card>
+  
+  <Card title="Client relationship management" icon="users">
+    CRM system to manage client information, track interactions, and maintain business relationships
+  </Card>
+  
+  <Card title="Quotation generation" icon="file-invoice">
+    Create, manage, and track quotations with automated calculations and professional formatting
+  </Card>
+  
+  <Card title="Employee management" icon="user-tie">
+    Manage employee profiles, roles, permissions, and access control across the platform
+  </Card>
+  
+  <Card title="Calendar & scheduling" icon="calendar">
+    Integrated calendar using FullCalendar for scheduling events, meetings, and business activities
+  </Card>
+  
+  <Card title="Role-based authentication" icon="shield-check">
+    Secure authentication system with permission-based access control for different user roles
+  </Card>
+</CardGroup>
+
+## Technology stack
+
+MKing Admin is built with cutting-edge technologies to ensure performance, maintainability, and developer experience:
+
+### Core framework
+- **React 18.3** - Modern React with hooks and concurrent features
+- **TypeScript 5.7** - Type-safe development with excellent IDE support
+- **Vite 6.0** - Lightning-fast build tool with HMR (Hot Module Replacement)
+
+### UI & styling
+- **Material-UI 5.18** - Comprehensive component library following Material Design
+- **Emotion** - CSS-in-JS styling solution for dynamic theming
+- **Framer Motion** - Smooth animations and transitions
+
+### State management
+- **Redux Toolkit 2.3** - Simplified Redux with best practices built-in
+- **Redux Persist** - Persist and rehydrate state across sessions
+- **Zustand** - Lightweight state management for simpler use cases
+
+### Data & forms
+- **React Hook Form 7.54** - Performant form handling with validation
+- **Yup** - Schema-based form validation
+- **Axios** - Promise-based HTTP client for API requests
+
+### Features & utilities
+- **React Router 6.30** - Declarative routing for navigation
+- **FullCalendar 6.1** - Feature-rich calendar component
+- **AG Grid** - Advanced data grid for complex tables
+- **ApexCharts** - Interactive charts and data visualization
+- **date-fns & Moment** - Date manipulation and formatting
+- **JWT Decode** - JSON Web Token authentication handling
+
+## Architecture overview
+
+MKing Admin follows a modular architecture:
+
+```
+src/
+├── auth/          # Authentication components and logic
+├── pages/         # Feature modules (Products, Clients, Quotations, etc.)
+├── core/          # Core application wrapper and configuration
+├── store/         # Redux and Zustand state management
+├── router/        # Route definitions and navigation
+├── services/      # API service layer and HTTP clients
+├── theme/         # Material-UI theme configuration
+├── utils/         # Shared utilities and helpers
+└── assets/        # Static assets (images, styles, etc.)
+```
+
+<Note>
+The application uses a development server with proxy configuration to connect to a backend API running on `localhost:3333`.
+</Note>
+
+## Who is MKing Admin for?
+
+MKing Admin is designed for:
+
+- **Business administrators** who need to manage products, clients, and quotations
+- **Sales teams** tracking client relationships and generating quotes
+- **Operations managers** coordinating employee schedules and business activities
+- **Developers** looking for a modern, well-architected admin dashboard template
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="bolt" href="/quickstart">
+    Get MKing Admin running locally in 5 minutes
+  </Card>
+  
+  <Card title="Installation" icon="download" href="/installation">
+    Detailed installation and configuration guide
+  </Card>
+</CardGroup>

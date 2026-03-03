@@ -1,0 +1,394 @@
+---
+title: 'API Integration'
+description: 'Configure and use the API integration layer with Axios interceptors and authentication'
+---
+
+## Overview
+
+MKing Admin uses Axios as the HTTP client for all API communications. The application includes centralized API configuration with request/response interceptors for authentication, error handling, and CORS management.
+
+## Base Configuration
+
+All API services use the `VITE_BASE_URL` environment variable to construct endpoints:
+
+```typescript
+const apiUrl = import.meta.env.VITE_BASE_URL;
+```
+
+### Example Service Structure
+
+```typescript src/services/admin.service.tsx
+import axios from "axios";
+import { Response } from "../utils/response";
+
+const apiUrl = import.meta.env.VITE_BASE_URL;
+
+// Service functions
+export const getProducts = async () => 
+  await axios.get(`${apiUrl}/product`);
+
+export const saveProduct = async (body: any) => 
+  await axios.post(`${apiUrl}/product`, body, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+```
+
+## Request Interceptors
+
+Request interceptors add authentication tokens and configure headers for all outgoing requests.
+
+### Authentication Interceptor
+
+```typescript src/services/admin.service.tsx
+axios.interceptors.request.use(
+  (config: any) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers["Authorization"] = "Bearer " + token;
+    }
+    config.headers["Access-Control-Allow-Origin"] = "*";
+    config.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE";
+    config.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization";
+    config.headers["Content-Type"] = "application/json";
+    
+    return config;
+  },
+  function (error) {
+    return Promise.reject(error);
+  }
+);
+```
+
+<Note>
+  The authentication token is automatically retrieved from `localStorage` and added to all requests as a Bearer token.
+</Note>
+
+### Request Headers
+
+All API requests include the following headers:
+
+- **Authorization**: `Bearer {token}` - JWT authentication token
+- **Content-Type**: `application/json` - Default content type (overridable)
+- **Access-Control-Allow-Origin**: `*` - CORS configuration
+- **Access-Control-Allow-Methods**: `GET, POST, PUT, DELETE`
+- **Access-Control-Allow-Headers**: `Content-Type, Authorization`
+
+## Response Interceptors
+
+Response interceptors handle API responses and errors globally.
+
+### Response Handler
+
+```typescript src/services/admin.service.tsx
+axios.interceptors.response.use(
+  (res: any) => {
+    return res;
+  },
+  (err) => {
+    const status = err.response ? err.response.status : 0;
+    const data = err.response ? err.response.data : null;
+    Response(status, data);
+    return Promise.reject(err);
+  }
+);
+```
+
+The `Response` utility function handles error status codes and displays appropriate messages to users.
+
+### Error Status Handling
+
+Common HTTP status codes handled by the interceptor:
+
+- **401 Unauthorized**: Invalid or expired token - redirect to login
+- **403 Forbidden**: Insufficient permissions
+- **404 Not Found**: Resource not found
+- **500 Internal Server Error**: Server-side error
+
+## Service Modules
+
+The application is organized into multiple service modules:
+
+### Admin Service
+
+Manages products, catalogs, clients, employees, and quotations.
+
+```typescript src/services/admin.service.tsx
+// Products
+export const getProducts = async () => 
+  await axios.get(`${apiUrl}/product`);
+
+export const getProduct = async (id: number) => 
+  await axios.get(`${apiUrl}/product/${id}`);
+
+export const saveProduct = async (body: any) => 
+  await axios.post(`${apiUrl}/product`, body, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+
+export const updateProduct = async (id: number, body: any) => 
+  await axios.put(`${apiUrl}/product/${id}`, body, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+
+export const delProduct = async (id: number) => 
+  await axios.delete(`${apiUrl}/product/${id}`);
+
+// Catalogs
+export const getCategories = async () => 
+  await axios.get(`${apiUrl}/product_category`);
+
+export const getColors = async () => 
+  await axios.get(`${apiUrl}/product_color`);
+
+export const getSizes = async () => 
+  await axios.get(`${apiUrl}/product_size`);
+
+// Clients
+export const getClients = async () => 
+  await axios.get(`${apiUrl}/client`);
+
+export const saveClient = async (body: any) => 
+  await axios.post(`${apiUrl}/client`, body);
+
+// Employees
+export const getEmployees = async () => 
+  await axios.get(`${apiUrl}/employee`);
+
+export const saveEmployee = async (body: any) => 
+  await axios.post(`${apiUrl}/employee`, body, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+```
+
+### Event Service
+
+Manages calendar events.
+
+```typescript src/services/event.service.ts
+import axios from "axios";
+const apiUrl = import.meta.env.VITE_BASE_URL;
+
+export interface CalendarEvent {
+  id?: string;
+  title: string;
+  description?: string;
+  start: string | Date;
+  end: string | Date;
+  allDay?: boolean;
+  color?: string;
+  display?: string;
+}
+
+export const getEvents = (start?: string, end?: string) => {
+  return axios.get(`${apiUrl}/events`, {
+    params: { start, end }
+  });
+};
+
+export const createEvent = (event: CalendarEvent) => {
+  return axios.post(`${apiUrl}/events`, event);
+};
+
+export const updateEvent = (id: number | string, event: CalendarEvent) => {
+  return axios.put(`${apiUrl}/events/${id}`, event);
+};
+
+export const deleteEvent = (id: number | string) => {
+  return axios.delete(`${apiUrl}/events/${id}`);
+};
+```
+
+### E-commerce Service
+
+Handles e-commerce specific operations.
+
+```typescript src/services/ecomme.service.tsx
+export const getProducts = async () => 
+  await axios.get(`${apiUrl}/productos`);
+
+export const getUnits = async () => 
+  await axios.get(`${apiUrl}/unit`);
+
+export const getWarehouses = async () => 
+  await axios.get(`${apiUrl}/warehouse`);
+```
+
+## File Upload Configuration
+
+For file uploads (products, employees), use `multipart/form-data` content type:
+
+```typescript
+export const saveProduct = async (body: any) => 
+  await axios.post(`${apiUrl}/product`, body, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+```
+
+### Image Management
+
+```typescript
+// Delete product image
+export const delImg = async (id: number) => 
+  await axios.delete(`${apiUrl}/product_image/${id}`);
+
+// Set primary product image
+export const setPrimaryImage = async (id: number) => {
+  const response = await axios.put(`${apiUrl}/product_image/${id}/primary`);
+  return response.data;
+};
+```
+
+## Authentication Flow
+
+### Login Service
+
+```typescript src/services/service.tsx
+export const LoginService = (body: any) => 
+  axios.post(`${apiUrl}/login`, body);
+```
+
+### Token Storage
+
+After successful login:
+
+1. Store the JWT token in `localStorage`:
+   ```typescript
+   localStorage.setItem("token", response.data.token);
+   ```
+
+2. The request interceptor automatically adds it to subsequent requests
+
+3. On logout, clear the token:
+   ```typescript
+   localStorage.removeItem("token");
+   ```
+
+<Warning>
+  Always clear the authentication token from localStorage on logout to prevent unauthorized access.
+</Warning>
+
+## PDF Downloads
+
+For PDF downloads, use `blob` response type:
+
+```typescript src/services/admin.service.tsx
+export const downloadAdminQuotationPdf = async (uuid: string) => {
+  return await axios.get(
+    `${apiUrl}/quotation_admin/${uuid}/pdf`, 
+    { responseType: 'blob' }
+  );
+};
+```
+
+## Query Parameters
+
+Pass query parameters using the `params` option:
+
+```typescript
+export const getEvents = (start?: string, end?: string) => {
+  return axios.get(`${apiUrl}/events`, {
+    params: { start, end }
+  });
+};
+```
+
+## API Endpoint Reference
+
+### Products
+- `GET /api/product` - Get all products
+- `GET /api/product/{id}` - Get single product
+- `POST /api/product` - Create product (multipart/form-data)
+- `PUT /api/product/{id}` - Update product (multipart/form-data)
+- `DELETE /api/product/{id}` - Delete product
+
+### Catalogs
+- `GET /api/product_category` - Get all categories
+- `GET /api/product_color` - Get all colors
+- `GET /api/product_size` - Get all sizes
+- `GET /api/regimen_fiscal` - Get fiscal regimes
+- `GET /api/cfdi` - Get CFDI types
+
+### Clients
+- `GET /api/client` - Get all clients
+- `GET /api/client/{id}` - Get single client
+- `POST /api/client` - Create client
+- `PUT /api/client/{id}` - Update client
+- `DELETE /api/client/{id}` - Delete client
+
+### Employees
+- `GET /api/employee` - Get all employees
+- `POST /api/employee` - Create employee (multipart/form-data)
+- `PUT /api/employee/{id}` - Update employee (multipart/form-data)
+- `DELETE /api/employee/{id}` - Delete employee
+
+### Quotations
+- `GET /api/quotation_admin` - Get all quotations
+- `GET /api/quotation_admin/{id}` - Get single quotation
+- `POST /api/quotation_admin` - Create quotation (multipart/form-data)
+- `GET /api/quotation_admin/{uuid}/pdf` - Download quotation PDF
+
+### Events
+- `GET /api/events` - Get all events
+- `POST /api/events` - Create event
+- `PUT /api/events/{id}` - Update event
+- `DELETE /api/events/{id}` - Delete event
+
+## Development Proxy
+
+The development server includes an API proxy configuration in `vite.config.ts`:
+
+```typescript
+server: {
+  proxy: {
+    '/api': {
+      target: 'http://localhost:3333',
+      changeOrigin: true,
+      secure: false
+    }
+  }
+}
+```
+
+This allows you to make requests to `/api/*` which will be proxied to `http://localhost:3333/api/*`.
+
+## Best Practices
+
+1. **Centralize API calls**: Keep all API calls in service modules
+2. **Error handling**: Always handle errors in components using try-catch
+3. **Type safety**: Define interfaces for request/response data
+4. **Token refresh**: Implement token refresh logic for long-running sessions
+5. **Loading states**: Show loading indicators during API calls
+6. **Cancellation**: Implement request cancellation for components that unmount
+
+## Troubleshooting
+
+### CORS Errors
+
+If you encounter CORS errors:
+
+1. Verify the backend CORS configuration
+2. Check the `Access-Control-Allow-Origin` header in interceptors
+3. Use the development proxy in `vite.config.ts`
+
+### 401 Unauthorized
+
+If you receive 401 errors:
+
+1. Check if the token is present in localStorage
+2. Verify the token hasn't expired
+3. Ensure the Authorization header is properly formatted
+4. Confirm the backend accepts Bearer tokens
+
+### Network Errors
+
+For network connectivity issues:
+
+1. Verify `VITE_BASE_URL` is correctly set
+2. Check if the backend server is running
+3. Test the endpoint using a tool like Postman
+4. Review the browser console for detailed error messages
+
+## Related Resources
+
+- [Environment Configuration](/configuration/environment)
+- [Catalog Management](/configuration/catalogs)

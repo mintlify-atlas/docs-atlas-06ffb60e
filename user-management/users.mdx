@@ -1,0 +1,329 @@
+---
+title: User Management
+description: Manage system users and their role assignments
+---
+
+## Overview
+
+The User Management system provides administrative control over user accounts, allowing you to view, create, and delete users. Users are authenticated via JWT tokens and inherit permissions from their assigned roles.
+
+## User Interface
+
+### Users Page
+
+The main users page (`/users`) displays all system users in a data grid:
+
+```tsx
+// src/pages/Users/UsersPage.tsx:54-77
+const columnDefs = useMemo(() => [
+  { headerName: "ID", field: "id", width: 70 },
+  { headerName: "Nombre", field: "name", flex: 1 },
+  { headerName: "Apellidos", field: "last_name", flex: 1 },
+  { headerName: "Email", field: "email", flex: 1 },
+  {
+    headerName: "Rol",
+    field: "roles",
+    flex: 1,
+    valueGetter: (params: any) => params.data.roles?.map((r: any) => r.name).join(', ') || ''
+  },
+  {
+    headerName: "Acciones",
+    field: "id",
+    width: 100,
+    cellRenderer: (params: any) => (
+      <Box>
+        <IconButton size="small" color="error" onClick={() => handleDelete(params.value)}>
+          <DeleteIcon />
+        </IconButton>
+      </Box>
+    )
+  }
+], []);
+```
+
+<Info>
+The users table is powered by AG Grid with built-in sorting, filtering, and pagination support.
+</Info>
+
+## User Data Structure
+
+### User Model
+
+```tsx
+// src/store/authStore.ts:3-9
+interface User {
+  id: number;
+  name: string;
+  last_name: string;
+  email: string;
+  [key: string]: any;
+}
+```
+
+### User-Role Relationship
+
+Users can have one or more roles assigned. Each role contains a set of permissions:
+
+```
+User
+  └─ Roles[] (one or many)
+      └─ Permissions[] (many)
+          └─ slug (string)
+```
+
+## API Integration
+
+### User Endpoints
+
+```tsx
+// src/services/admin.service.tsx:127-128
+export const getUsers = async () => await axios.get(`${apiUrl}/users`);
+export const deleteUser = async (id: number) => await axios.delete(`${apiUrl}/users/${id}`);
+```
+
+<Warning>
+The current implementation only supports viewing and deleting users. User creation is typically handled through the employee creation flow or backend processes.
+</Warning>
+
+### Loading Users
+
+```tsx
+// src/pages/Users/UsersPage.tsx:21-28
+const loadUsers = async () => {
+  try {
+    const res = await getUsers();
+    setUsers(res.data);
+  } catch (error) {
+    console.error(error);
+  }
+};
+```
+
+## User Operations
+
+### Deleting Users
+
+User deletion requires confirmation and provides feedback:
+
+```tsx
+// src/pages/Users/UsersPage.tsx:30-52
+const handleDelete = async (id: number) => {
+  const result = await Swal.fire({
+    title: '¿Estás seguro?',
+    text: "No podrás revertir esta acción",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#3085d6',
+    cancelButtonColor: '#d33',
+    confirmButtonText: 'Sí, eliminar',
+    cancelButtonText: 'Cancelar'
+  });
+
+  if (result.isConfirmed) {
+    try {
+      await deleteUser(id);
+      Swal.fire('Eliminado', 'El usuario ha sido eliminado.', 'success');
+      loadUsers();
+    } catch (error) {
+      console.error(error);
+      Swal.fire('Error', 'No se pudo eliminar el usuario', 'error');
+    }
+  }
+};
+```
+
+<Steps>
+  <Step title="Confirmation Dialog">
+    User is prompted to confirm deletion with a warning message
+  </Step>
+  
+  <Step title="API Request">
+    If confirmed, DELETE request is sent to `/users/{id}`
+  </Step>
+  
+  <Step title="UI Update">
+    On success, the user list is refreshed and a success message is displayed
+  </Step>
+</Steps>
+
+## Authentication Flow
+
+### Login Process
+
+When a user logs in, their information and permissions are loaded:
+
+```tsx
+// src/auth/pages/LoginPage.tsx:32-37
+const { data: userData } = await getInfoUser();
+const perms = userData.roles.flatMap((role: any) =>
+  role.permissions.map((p: any) => p.slug)
+);
+setAuth(userData, perms);
+```
+
+### JWT Token Storage
+
+Authentication tokens are stored in localStorage and included in all API requests:
+
+```tsx
+// src/services/admin.service.tsx:5-16
+axios.interceptors.request.use(
+  (config: any) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers["Authorization"] = "Bearer " + token;
+    }
+    config.headers["Access-Control-Allow-Origin"] = "*";
+    config.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE";
+    config.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization";
+    config.headers["Content-Type"] = "application/json";
+    return config;
+  }
+);
+```
+
+### Session Persistence
+
+User sessions are restored on page reload:
+
+```tsx
+// src/router/AppRouter.tsx:45-62
+useEffect(() => {
+  const token = localStorage.getItem("token");
+  if (token && !isAuthenticated) {
+    getInfoUser()
+      .then((res) => {
+        const user = res.data;
+        const perms = user.roles.flatMap((role: any) =>
+          role.permissions.map((p: any) => p.slug)
+        );
+        setAuth(user, perms);
+      })
+      .catch((err) => {
+        console.error("Error fetching user info in router:", err);
+      });
+  }
+}, [isAuthenticated, setAuth]);
+```
+
+## Access Control
+
+### Required Permission
+
+To access the Users page, users must have the `users.view` permission:
+
+```tsx
+// src/core/MenuSidebar.tsx:84-92
+{
+  id: 8,
+  title: "Administración",
+  text_menu: "Usuarios",
+  icon: <ManageAccountsIcon></ManageAccountsIcon>,
+  path: "/users",
+  permission: "users.view",
+  page: <UsersPage></UsersPage>
+}
+```
+
+<Note>
+Users without the `users.view` permission will not see the Users menu item and will be redirected if they attempt to access the route directly.
+</Note>
+
+## User Store
+
+### Auth State Management
+
+The application uses Zustand for global auth state:
+
+```tsx
+// src/store/authStore.ts:11-33
+interface AuthState {
+  user: User | null;
+  permissions: string[];
+  isAuthenticated: boolean;
+  setAuth: (user: User, permissions: string[]) => void;
+  clearAuth: () => void;
+}
+
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  permissions: [],
+  isAuthenticated: false,
+  setAuth: (user, permissions) => set({
+    user,
+    permissions,
+    isAuthenticated: true
+  }),
+  clearAuth: () => set({
+    user: null,
+    permissions: [],
+    isAuthenticated: false
+  }),
+}));
+```
+
+### Accessing Current User
+
+Components can access the current user data:
+
+```tsx
+import { useAuthStore } from "../../store/authStore";
+
+const { user, permissions } = useAuthStore();
+
+console.log(user.name); // Current user's name
+console.log(user.email); // Current user's email
+```
+
+## Error Handling
+
+### Response Interceptor
+
+Global error handling for API responses:
+
+```tsx
+// src/services/admin.service.tsx:24-34
+axios.interceptors.response.use(
+  (res: any) => {
+    return res;
+  },
+  (err) => {
+    const status = err.response ? err.response.status : 0;
+    const data = err.response ? err.response.data : null;
+    Response(status, data);
+    return Promise.reject(err);
+  }
+);
+```
+
+<Info>
+The `Response` utility function handles common HTTP status codes and displays appropriate error messages to users.
+</Info>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Security" icon="shield">
+    Always validate user permissions before performing sensitive operations
+  </Card>
+  
+  <Card title="Data Validation" icon="check-circle">
+    Verify user data on both frontend and backend before processing
+  </Card>
+  
+  <Card title="Audit Trail" icon="list">
+    Consider logging user deletions and role changes for security audits
+  </Card>
+  
+  <Card title="Token Management" icon="key">
+    Implement token refresh mechanisms for long-running sessions
+  </Card>
+</CardGroup>
+
+## Integration with Employees
+
+User accounts are typically created when employees are added to the system. See the Employees documentation for details on the employee-user relationship.
+
+<Tip>
+Each employee can have an associated user account for system access, inheriting permissions from their assigned roles.
+</Tip>

@@ -1,0 +1,325 @@
+---
+title: Quotations
+description: API endpoints for managing quotations and generating PDFs
+---
+
+## Quotations
+
+### List All Quotations
+
+<RequestExample>
+```bash GET /quotation_admin
+curl -X GET "${VITE_BASE_URL}/quotation_admin" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Retrieves a list of all quotations.
+
+**Authentication Required:** Yes
+
+### Response
+
+<ResponseField name="data" type="array">
+  Array of quotation objects
+  
+  <ResponseField name="id" type="number">
+    Quotation unique identifier
+  </ResponseField>
+  
+  <ResponseField name="uuid" type="string">
+    Quotation UUID for public access
+  </ResponseField>
+  
+  <ResponseField name="client_id" type="number">
+    Associated client ID
+  </ResponseField>
+  
+  <ResponseField name="client" type="object">
+    Client information
+  </ResponseField>
+  
+  <ResponseField name="total" type="number">
+    Quotation total amount
+  </ResponseField>
+  
+  <ResponseField name="subtotal" type="number">
+    Subtotal before taxes
+  </ResponseField>
+  
+  <ResponseField name="tax" type="number">
+    Tax amount
+  </ResponseField>
+  
+  <ResponseField name="status" type="string">
+    Quotation status (draft, sent, approved, rejected)
+  </ResponseField>
+  
+  <ResponseField name="items" type="array">
+    Array of quotation line items
+  </ResponseField>
+  
+  <ResponseField name="created_at" type="string">
+    Creation timestamp
+  </ResponseField>
+  
+  <ResponseField name="valid_until" type="string">
+    Quotation expiration date
+  </ResponseField>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "data": [
+    {
+      "id": 1,
+      "uuid": "550e8400-e29b-41d4-a716-446655440000",
+      "client_id": 5,
+      "client": {
+        "id": 5,
+        "name": "Empresa ABC",
+        "email": "abc@example.com"
+      },
+      "subtotal": 10000.00,
+      "tax": 1600.00,
+      "total": 11600.00,
+      "status": "sent",
+      "items": [
+        {
+          "product_id": 1,
+          "product_name": "Product A",
+          "quantity": 10,
+          "unit_price": 1000.00,
+          "total": 10000.00
+        }
+      ],
+      "created_at": "2024-03-01T10:00:00Z",
+      "valid_until": "2024-03-31T23:59:59Z"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+### Get Quotation by ID
+
+<RequestExample>
+```bash GET /quotation_admin/{id}
+curl -X GET "${VITE_BASE_URL}/quotation_admin/1" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Retrieves a single quotation by ID or UUID.
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="number | string" required>
+  Quotation ID or UUID
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="number">
+  Quotation unique identifier
+</ResponseField>
+
+<ResponseField name="uuid" type="string">
+  Quotation UUID
+</ResponseField>
+
+<ResponseField name="client_id" type="number">
+  Associated client ID
+</ResponseField>
+
+<ResponseField name="client" type="object">
+  Full client information
+</ResponseField>
+
+<ResponseField name="items" type="array">
+  Detailed line items with product information
+</ResponseField>
+
+<ResponseField name="subtotal" type="number">
+  Subtotal amount
+</ResponseField>
+
+<ResponseField name="tax" type="number">
+  Tax amount
+</ResponseField>
+
+<ResponseField name="total" type="number">
+  Total amount
+</ResponseField>
+
+<ResponseField name="notes" type="string">
+  Quotation notes or terms
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current status
+</ResponseField>
+
+<ResponseField name="created_by" type="object">
+  User who created the quotation
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "id": 1,
+  "uuid": "550e8400-e29b-41d4-a716-446655440000",
+  "client_id": 5,
+  "client": {
+    "id": 5,
+    "name": "Empresa ABC",
+    "email": "abc@example.com",
+    "rfc": "ABC123456XYZ"
+  },
+  "items": [
+    {
+      "id": 1,
+      "product_id": 1,
+      "product": {
+        "id": 1,
+        "name": "Product A",
+        "description": "High quality product"
+      },
+      "quantity": 10,
+      "unit_price": 1000.00,
+      "discount": 0,
+      "total": 10000.00
+    }
+  ],
+  "subtotal": 10000.00,
+  "tax": 1600.00,
+  "total": 11600.00,
+  "notes": "Payment terms: Net 30",
+  "status": "sent",
+  "created_by": {
+    "id": 1,
+    "name": "John Doe"
+  },
+  "created_at": "2024-03-01T10:00:00Z",
+  "valid_until": "2024-03-31T23:59:59Z"
+}
+```
+</ResponseExample>
+
+---
+
+### Create Quotation
+
+<RequestExample>
+```bash POST /quotation_admin
+curl -X POST "${VITE_BASE_URL}/quotation_admin" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: multipart/form-data" \
+  -F 'client_id=5' \
+  -F 'items=[{"product_id":1,"quantity":10,"unit_price":1000}]' \
+  -F 'notes=Payment terms: Net 30' \
+  -F 'valid_until=2024-03-31' \
+  -F 'attachments[]=@/path/to/file.pdf'
+```
+</RequestExample>
+
+Creates a new quotation with optional file attachments.
+
+**Authentication Required:** Yes  
+**Content-Type:** `multipart/form-data`
+
+### Request Body
+
+<ParamField body="client_id" type="number" required>
+  Client ID for this quotation
+</ParamField>
+
+<ParamField body="items" type="array" required>
+  Array of line items
+  
+  Each item should have:
+  - `product_id` (number): Product ID
+  - `quantity` (number): Quantity
+  - `unit_price` (number): Unit price
+  - `discount` (number, optional): Discount percentage
+</ParamField>
+
+<ParamField body="notes" type="string">
+  Quotation notes or payment terms
+</ParamField>
+
+<ParamField body="valid_until" type="string">
+  Expiration date (YYYY-MM-DD format)
+</ParamField>
+
+<ParamField body="attachments" type="file[]">
+  Optional file attachments
+</ParamField>
+
+<ParamField body="status" type="string">
+  Initial status (default: "draft")
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="number">
+  Created quotation ID
+</ResponseField>
+
+<ResponseField name="uuid" type="string">
+  Generated UUID for the quotation
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success message
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "id": 42,
+  "uuid": "7d9e4b2a-3c1f-4e8a-9d6b-5f2a3e7c8d1b",
+  "message": "Quotation created successfully"
+}
+```
+</ResponseExample>
+
+---
+
+### Download Quotation PDF
+
+<RequestExample>
+```bash GET /quotation_admin/{uuid}/pdf
+curl -X GET "${VITE_BASE_URL}/quotation_admin/550e8400-e29b-41d4-a716-446655440000/pdf" \
+  -H "Authorization: Bearer <token>" \
+  --output quotation.pdf
+```
+</RequestExample>
+
+Generates and downloads a PDF version of the quotation.
+
+**Authentication Required:** Yes  
+**Response Type:** Binary (PDF file)
+
+### Path Parameters
+
+<ParamField path="uuid" type="string" required>
+  Quotation UUID
+</ParamField>
+
+### Response
+
+Returns a PDF file as binary data with the following headers:
+- `Content-Type: application/pdf`
+- `Content-Disposition: attachment; filename="quotation-{uuid}.pdf"`
+
+<ResponseExample>
+```text Response
+Binary PDF data
+```
+</ResponseExample>

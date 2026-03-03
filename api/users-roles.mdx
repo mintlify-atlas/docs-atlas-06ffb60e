@@ -1,0 +1,498 @@
+---
+title: Users and Roles
+description: API endpoints for managing users, roles, and permissions
+---
+
+## Users
+
+### List All Users
+
+<RequestExample>
+```bash GET /users
+curl -X GET "${VITE_BASE_URL}/users" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Retrieves a list of all users in the system.
+
+**Authentication Required:** Yes
+
+### Response
+
+<ResponseField name="data" type="array">
+  Array of user objects
+  
+  <ResponseField name="id" type="number">
+    User unique identifier
+  </ResponseField>
+  
+  <ResponseField name="email" type="string">
+    User email address
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    User full name
+  </ResponseField>
+  
+  <ResponseField name="role_id" type="number">
+    Associated role ID
+  </ResponseField>
+  
+  <ResponseField name="role" type="object">
+    Role information with permissions
+  </ResponseField>
+  
+  <ResponseField name="employee_id" type="number">
+    Associated employee ID if applicable
+  </ResponseField>
+  
+  <ResponseField name="status" type="string">
+    User status (active, inactive)
+  </ResponseField>
+  
+  <ResponseField name="last_login" type="string">
+    Timestamp of last login
+  </ResponseField>
+  
+  <ResponseField name="created_at" type="string">
+    Creation timestamp
+  </ResponseField>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "data": [
+    {
+      "id": 1,
+      "email": "admin@company.com",
+      "name": "Administrator",
+      "role_id": 1,
+      "role": {
+        "id": 1,
+        "name": "Super Admin",
+        "permissions": ["*"]
+      },
+      "employee_id": null,
+      "status": "active",
+      "last_login": "2024-03-03T08:30:00Z",
+      "created_at": "2023-01-01T00:00:00Z"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+### Delete User
+
+<RequestExample>
+```bash DELETE /users/{id}
+curl -X DELETE "${VITE_BASE_URL}/users/5" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Deletes a user account.
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  User ID to delete
+</ParamField>
+
+### Response
+
+<ResponseField name="message" type="string">
+  Success message
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "message": "User deleted successfully"
+}
+```
+</ResponseExample>
+
+---
+
+## Roles
+
+### List All Roles
+
+<RequestExample>
+```bash GET /roles
+curl -X GET "${VITE_BASE_URL}/roles" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Retrieves a list of all roles.
+
+**Authentication Required:** Yes
+
+### Response
+
+<ResponseField name="data" type="array">
+  Array of role objects
+  
+  <ResponseField name="id" type="number">
+    Role unique identifier
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    Role name
+  </ResponseField>
+  
+  <ResponseField name="description" type="string">
+    Role description
+  </ResponseField>
+  
+  <ResponseField name="permissions" type="array">
+    Array of permission objects assigned to this role
+  </ResponseField>
+  
+  <ResponseField name="users_count" type="number">
+    Number of users with this role
+  </ResponseField>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "Super Admin",
+      "description": "Full system access",
+      "permissions": [
+        {
+          "id": 1,
+          "name": "users.view",
+          "description": "View users"
+        },
+        {
+          "id": 2,
+          "name": "users.create",
+          "description": "Create users"
+        }
+      ],
+      "users_count": 3
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+### Get Role by ID
+
+<RequestExample>
+```bash GET /roles/{id}
+curl -X GET "${VITE_BASE_URL}/roles/1" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Retrieves a single role by ID.
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Role ID
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="number">
+  Role unique identifier
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Role name
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Role description
+</ResponseField>
+
+<ResponseField name="permissions" type="array">
+  Full list of permissions with details
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "id": 2,
+  "name": "Sales Manager",
+  "description": "Manage sales and clients",
+  "permissions": [
+    {
+      "id": 10,
+      "name": "clients.view",
+      "description": "View clients"
+    },
+    {
+      "id": 11,
+      "name": "clients.create",
+      "description": "Create clients"
+    },
+    {
+      "id": 20,
+      "name": "quotations.view",
+      "description": "View quotations"
+    },
+    {
+      "id": 21,
+      "name": "quotations.create",
+      "description": "Create quotations"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+### Create Role
+
+<RequestExample>
+```bash POST /roles
+curl -X POST "${VITE_BASE_URL}/roles" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Inventory Manager",
+    "description": "Manage inventory and products",
+    "permissions": [10, 11, 12, 30, 31]
+  }'
+```
+</RequestExample>
+
+Creates a new role with assigned permissions.
+
+**Authentication Required:** Yes
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Role name
+</ParamField>
+
+<ParamField body="description" type="string">
+  Role description
+</ParamField>
+
+<ParamField body="permissions" type="array" required>
+  Array of permission IDs to assign to this role
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="number">
+  Created role ID
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success message
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "id": 5,
+  "message": "Role created successfully"
+}
+```
+</ResponseExample>
+
+---
+
+### Update Role
+
+<RequestExample>
+```bash PUT /roles/{id}
+curl -X PUT "${VITE_BASE_URL}/roles/5" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Senior Inventory Manager",
+    "permissions": [10, 11, 12, 13, 30, 31, 32]
+  }'
+```
+</RequestExample>
+
+Updates an existing role.
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Role ID to update
+</ParamField>
+
+### Request Body
+
+Same fields as Create Role (all optional for updates)
+
+---
+
+### Delete Role
+
+<RequestExample>
+```bash DELETE /roles/{id}
+curl -X DELETE "${VITE_BASE_URL}/roles/5" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Deletes a role. Cannot delete if users are assigned to this role.
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Role ID to delete
+</ParamField>
+
+---
+
+## Permissions
+
+### List All Permissions
+
+<RequestExample>
+```bash GET /permissions
+curl -X GET "${VITE_BASE_URL}/permissions" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Retrieves a list of all available permissions in the system.
+
+**Authentication Required:** Yes
+
+### Response
+
+<ResponseField name="data" type="array">
+  Array of permission objects
+  
+  <ResponseField name="id" type="number">
+    Permission unique identifier
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    Permission name (e.g., "users.view", "products.create")
+  </ResponseField>
+  
+  <ResponseField name="description" type="string">
+    Human-readable permission description
+  </ResponseField>
+  
+  <ResponseField name="module" type="string">
+    Module this permission belongs to
+  </ResponseField>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "users.view",
+      "description": "View users",
+      "module": "Users"
+    },
+    {
+      "id": 2,
+      "name": "users.create",
+      "description": "Create users",
+      "module": "Users"
+    },
+    {
+      "id": 10,
+      "name": "products.view",
+      "description": "View products",
+      "module": "Products"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+### Create Permission
+
+<RequestExample>
+```bash POST /permissions
+curl -X POST "${VITE_BASE_URL}/permissions" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "reports.export",
+    "description": "Export reports to PDF/Excel",
+    "module": "Reports"
+  }'
+```
+</RequestExample>
+
+Creates a new permission.
+
+**Authentication Required:** Yes
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Permission name (use dot notation: module.action)
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  Human-readable description
+</ParamField>
+
+<ParamField body="module" type="string" required>
+  Module name this permission belongs to
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="number">
+  Created permission ID
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success message
+</ResponseField>
+
+---
+
+### Delete Permission
+
+<RequestExample>
+```bash DELETE /permissions/{id}
+curl -X DELETE "${VITE_BASE_URL}/permissions/50" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Deletes a permission. Cannot delete if assigned to any role.
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Permission ID to delete
+</ParamField>

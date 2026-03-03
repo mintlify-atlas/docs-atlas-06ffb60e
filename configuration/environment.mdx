@@ -1,0 +1,171 @@
+---
+title: 'Environment Configuration'
+description: 'Configure environment variables and application settings for MKing Admin'
+---
+
+## Overview
+
+MKing Admin uses Vite for build tooling and environment variable management. All environment variables must be prefixed with `VITE_` to be exposed to the application.
+
+## Environment Variables
+
+Environment variables are defined in `.env` files at the root of your project. Create a `.env` file based on the `.env.example` template.
+
+### API Configuration
+
+<ParamField path="VITE_BASE_URL" type="string" required>
+  The base URL for the API backend. This is used by all service modules to construct API endpoints.
+  
+  **Development example:**
+  ```bash
+  VITE_BASE_URL=http://localhost:3008/api
+  ```
+  
+  **Production example:**
+  ```bash
+  VITE_BASE_URL=https://biws.garantia.mx:3008/api
+  ```
+</ParamField>
+
+<ParamField path="VITE_APP_ENV" type="string" default="develop">
+  The application environment mode. Used to determine which configuration set to use.
+  
+  **Possible values:**
+  - `develop` - Development environment
+  - `production` - Production environment
+  
+  ```bash
+  VITE_APP_ENV=develop
+  ```
+</ParamField>
+
+### Application URLs
+
+<ParamField path="VITE_GL_PRUEBAS" type="string">
+  The testing/staging URL for the Garantia application.
+  
+  ```bash
+  VITE_GL_PRUEBAS=https://pruebas.garantia.mx
+  ```
+</ParamField>
+
+<ParamField path="VITE_GL_PRODUCCION" type="string">
+  The production URL for the Garantia application.
+  
+  ```bash
+  VITE_GL_PRODUCCION=https://app.garantia.mx
+  ```
+</ParamField>
+
+<ParamField path="VITE_API_URL" type="string">
+  Optional base URL for serving static assets like employee images.
+  
+  ```bash
+  VITE_API_URL=http://localhost:3008
+  ```
+</ParamField>
+
+## Environment File Setup
+
+### Development Environment
+
+Create a `.env` file in your project root:
+
+```bash
+VITE_GL_PRUEBAS=https://pruebas.garantia.mx
+VITE_GL_PRODUCCION=https://app.garantia.mx
+
+VITE_APP_ENV=develop
+VITE_BASE_URL=http://localhost:3008/api
+```
+
+### Production Environment
+
+For production deployments, update your environment variables:
+
+```bash
+VITE_GL_PRUEBAS=https://pruebas.garantia.mx
+VITE_GL_PRODUCCION=https://app.garantia.mx
+
+VITE_APP_ENV=production
+VITE_BASE_URL=https://biws.garantia.mx:3008/api
+```
+
+<Warning>
+  Never commit your `.env` file to version control. Always use `.env.example` as a template and add `.env` to your `.gitignore` file.
+</Warning>
+
+## Accessing Environment Variables
+
+Environment variables are accessed using Vite's `import.meta.env` object:
+
+```typescript
+const apiUrl = import.meta.env.VITE_BASE_URL;
+```
+
+### Example Usage in Services
+
+All API services use the `VITE_BASE_URL` environment variable to construct endpoints:
+
+```typescript src/services/admin.service.tsx
+import axios from "axios";
+const apiUrl = import.meta.env.VITE_BASE_URL;
+
+export const getProducts = async () => 
+  await axios.get(`${apiUrl}/product`);
+
+export const getCategories = async () => 
+  await axios.get(`${apiUrl}/product_category`);
+```
+
+## Development Server Configuration
+
+The development server is configured in `vite.config.ts`:
+
+```typescript
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    host: '0.0.0.0',
+    port: 5000,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3333',
+        changeOrigin: true,
+        secure: false
+      }
+    }
+  }
+});
+```
+
+<Note>
+  The development server runs on port 5000 by default and includes an API proxy for local development.
+</Note>
+
+## Best Practices
+
+1. **Always prefix with VITE_**: Only environment variables prefixed with `VITE_` are exposed to the client-side code
+2. **Use .env.example**: Maintain a `.env.example` file with all required variables (without sensitive values)
+3. **Environment-specific files**: Create `.env.development` and `.env.production` for environment-specific configurations
+4. **Type safety**: Consider creating a typed wrapper around `import.meta.env` for better TypeScript support
+
+## Troubleshooting
+
+### Variables Not Loading
+
+If environment variables aren't working:
+
+1. Ensure the variable name starts with `VITE_`
+2. Restart the development server after changing `.env` files
+3. Check that the `.env` file is in the project root
+4. Verify the variable is not commented out
+
+### API Connection Errors
+
+If you're experiencing API connection issues:
+
+1. Verify `VITE_BASE_URL` points to the correct backend
+2. Check that the backend server is running
+3. Ensure CORS is properly configured on the backend
+4. Review the proxy configuration in `vite.config.ts`

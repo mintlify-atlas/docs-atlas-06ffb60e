@@ -1,0 +1,448 @@
+---
+title: State Management
+description: Redux Toolkit and Zustand state management patterns in MKing Admin
+---
+
+MKing Admin uses a dual state management approach, combining **Redux Toolkit** with **redux-persist** for complex state and **Zustand** for simpler, localized state management.
+
+## State Management Overview
+
+<CardGroup cols={2}>
+  <Card title="Redux Toolkit" icon="box">
+    Used for complex authentication state that needs persistence across sessions
+  </Card>
+  
+  <Card title="Zustand" icon="zap">
+    Used for simpler, component-level state like auth data and page titles
+  </Card>
+</CardGroup>
+
+## Redux Toolkit
+
+Redux Toolkit is configured with redux-persist to maintain authentication state across browser sessions.
+
+### Store Configuration
+
+The Redux store is configured in `src/store/store.tsx`:
+
+```tsx src/store/store.tsx
+import { configureStore } from "@reduxjs/toolkit";
+import { authSlice } from "./auth/authSlice";
+import storage from "redux-persist/lib/storage";
+import {
+  persistReducer,
+  FLUSH,
+  REHYDRATE,
+  PAUSE,
+  PERSIST,
+  PURGE,
+  REGISTER,
+} from "redux-persist";
+
+const persistConfig = {
+  key: "root",
+  version: 1,
+  storage,
+};
+
+const persistedReducer = persistReducer(persistConfig, authSlice.reducer);
+
+export const store = configureStore({
+  reducer: {
+    auth: persistedReducer,
+  },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
+      },
+    }),
+});
+
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;
+```
+
+<Accordion title="Key Configuration Details">
+  **Redux Persist Configuration:**
+  - `key: "root"` - The key used in localStorage
+  - `storage` - Uses localStorage by default
+  - Ignored actions prevent serialization warnings for persist actions
+
+  **TypeScript Types:**
+  - `RootState` - Type for the entire Redux state tree
+  - `AppDispatch` - Type for the dispatch function with thunk support
+</Accordion>
+
+### Auth Slice
+
+The authentication slice manages user authentication state:
+
+```tsx src/store/auth/authSlice.tsx
+import { createSlice } from "@reduxjs/toolkit";
+
+export const authSlice = createSlice({
+  name: "auth",
+  initialState: {
+    status: "not-authenticated", // 'checking', 'not-authenticated', 'authenticated'
+    fullname: null,
+    permissions: [],
+  },
+  reducers: {
+    login: (state, { payload }) => {
+      state.status = "authenticated";
+      state.fullname = payload.name;
+      state.permissions = payload.permisos;
+    },
+    logout: (state) => {
+      state.status = "not-authenticated";
+      state.fullname = null;
+      state.permissions = [];
+    },
+    checkingCredentials: (state) => {
+      state.status = "checking";
+    },
+  },
+});
+
+export const { login, logout, checkingCredentials } = authSlice.actions;
+```
+
+<Accordion title="State Properties">
+  - **status**: Authentication status (`'checking'` | `'not-authenticated'` | `'authenticated'`)
+  - **fullname**: User's full name (null when not authenticated)
+  - **permissions**: Array of permission slugs for the authenticated user
+</Accordion>
+
+### Thunks (Async Actions)
+
+Async operations are handled using thunks in `src/store/auth/thunks.tsx`:
+
+```tsx src/store/auth/thunks.tsx
+import { getInfoUser } from "../../services/service";
+import { checkingCredentials, login, logout } from "./authSlice";
+
+export const checkingAuthentication = () => {
+  return async (dispatch: any) => {
+    dispatch(checkingCredentials());
+  };
+};
+
+export const startGetUserInfo = () => {
+  return async (dispatch: any) => {
+    try {
+      const { data } = await getInfoUser();
+      const perms = data.roles.flatMap((role: any) =>
+        role.permissions.map((p: any) => p.slug)
+      );
+      dispatch(
+        login({
+          name: `${data.name} ${data.last_name || ""}`,
+          permisos: perms,
+        })
+      );
+    } catch (error) {
+      console.error("Error getting user info", error);
+      dispatch(logout({}));
+    }
+  };
+};
+```
+
+<Accordion title="Thunk Pattern">
+  Thunks allow you to:
+  - Perform async operations (API calls)
+  - Dispatch multiple actions
+  - Access the current state
+  - Handle errors gracefully
+
+  The `startGetUserInfo` thunk:
+  1. Fetches user data from the API
+  2. Extracts permissions from user roles
+  3. Dispatches the `login` action on success
+  4. Dispatches `logout` on error
+</Accordion>
+
+### Using Redux in Components
+
+<Tabs>
+  <Tab title="With Hooks">
+    ```tsx
+    import { useSelector, useDispatch } from 'react-redux';
+    import { RootState, AppDispatch } from '../store';
+    import { login, logout } from '../store/auth/authSlice';
+
+    function MyComponent() {
+      const dispatch = useDispatch<AppDispatch>();
+      const { status, fullname, permissions } = useSelector(
+        (state: RootState) => state.auth
+      );
+
+      const handleLogin = () => {
+        dispatch(login({
+          name: 'John Doe',
+          permisos: ['users.view', 'products.view']
+        }));
+      };
+
+      return (
+        <div>
+          <p>Status: {status}</p>
+          <p>User: {fullname}</p>
+          <button onClick={handleLogin}>Login</button>
+        </div>
+      );
+    }
+    ```
+  </Tab>
+  
+  <Tab title="With Thunks">
+    ```tsx
+    import { useDispatch } from 'react-redux';
+    import { AppDispatch } from '../store';
+    import { startGetUserInfo } from '../store/auth/thunks';
+
+    function LoginComponent() {
+      const dispatch = useDispatch<AppDispatch>();
+
+      const handleGetUserInfo = async () => {
+        // Dispatch the async thunk
+        await dispatch(startGetUserInfo());
+      };
+
+      return (
+        <button onClick={handleGetUserInfo}>
+          Get User Info
+        </button>
+      );
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Zustand
+
+Zustand provides a simpler, more lightweight alternative for local state management.
+
+### Auth Store
+
+The Zustand auth store (`src/store/authStore.ts`) provides an alternative authentication state management:
+
+```tsx src/store/authStore.ts
+import { create } from 'zustand';
+
+interface User {
+  id: number;
+  name: string;
+  last_name: string;
+  email: string;
+  [key: string]: any;
+}
+
+interface AuthState {
+  user: User | null;
+  permissions: string[];
+  isAuthenticated: boolean;
+  setAuth: (user: User, permissions: string[]) => void;
+  clearAuth: () => void;
+}
+
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  permissions: [],
+  isAuthenticated: false,
+  setAuth: (user, permissions) => set({
+    user,
+    permissions,
+    isAuthenticated: true
+  }),
+  clearAuth: () => set({
+    user: null,
+    permissions: [],
+    isAuthenticated: false
+  }),
+}));
+```
+
+<Accordion title="Zustand Store Pattern">
+  Zustand stores are:
+  - **Simple**: No boilerplate like Redux reducers and actions
+  - **TypeScript-friendly**: Full type inference
+  - **Hook-based**: Used directly as React hooks
+  - **Performant**: Component only re-renders when used state changes
+
+  The store defines:
+  - State properties (`user`, `permissions`, `isAuthenticated`)
+  - Actions as methods (`setAuth`, `clearAuth`)
+</Accordion>
+
+### Page Title Store
+
+A simpler example showing Zustand for UI state:
+
+```tsx src/store/pageTitleStore.ts
+import { create } from 'zustand';
+
+interface PageTitleState {
+  title: string;
+  setTitle: (title: string) => void;
+}
+
+export const usePageTitleStore = create<PageTitleState>((set) => ({
+  title: 'MKing',
+  setTitle: (title: string) => set({ title }),
+}));
+```
+
+### Using Zustand in Components
+
+<Tabs>
+  <Tab title="Reading State">
+    ```tsx
+    import { useAuthStore } from '../store/authStore';
+
+    function UserProfile() {
+      const user = useAuthStore((state) => state.user);
+      const permissions = useAuthStore((state) => state.permissions);
+
+      return (
+        <div>
+          <h1>{user?.name}</h1>
+          <p>Permissions: {permissions.join(', ')}</p>
+        </div>
+      );
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Updating State">
+    ```tsx
+    import { useAuthStore } from '../store/authStore';
+
+    function LoginForm() {
+      const setAuth = useAuthStore((state) => state.setAuth);
+
+      const handleLogin = async (userData: User, perms: string[]) => {
+        // Update Zustand store
+        setAuth(userData, perms);
+      };
+
+      return <form onSubmit={handleLogin}>...</form>;
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Multiple Values">
+    ```tsx
+    import { useAuthStore } from '../store/authStore';
+
+    function AuthStatus() {
+      // Select multiple values efficiently
+      const { user, isAuthenticated, clearAuth } = useAuthStore((state) => ({
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+        clearAuth: state.clearAuth,
+      }));
+
+      return (
+        <div>
+          {isAuthenticated ? (
+            <>
+              <p>Welcome, {user?.name}</p>
+              <button onClick={clearAuth}>Logout</button>
+            </>
+          ) : (
+            <p>Please login</p>
+          )}
+        </div>
+      );
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Redux vs Zustand: When to Use Which?
+
+<Tabs>
+  <Tab title="Use Redux When">
+    - State needs to persist across sessions (with redux-persist)
+    - You need middleware for logging, analytics, etc.
+    - Complex state transformations with multiple reducers
+    - DevTools integration for time-travel debugging
+    - Team is already familiar with Redux patterns
+  </Tab>
+  
+  <Tab title="Use Zustand When">
+    - Simple, localized state management
+    - Rapid prototyping
+    - UI state that doesn't need persistence
+    - Smaller state slices with simple updates
+    - Less boilerplate is preferred
+  </Tab>
+</Tabs>
+
+## Current Implementation
+
+In the MKing Admin app, the current state management is in **transition**:
+
+<Warning>
+  The application currently uses **both** Redux and Zustand for authentication state. This is likely transitional, and you should standardize on one approach:
+  
+  - **Redux auth slice** (`store/auth/authSlice.tsx`) - Older implementation
+  - **Zustand auth store** (`store/authStore.ts`) - Newer implementation (actively used in AppRouter)
+</Warning>
+
+The router primarily uses Zustand:
+
+```tsx src/router/AppRouter.tsx (excerpt)
+const { permissions, setAuth, isAuthenticated } = useAuthStore();
+
+useEffect(() => {
+  const token = localStorage.getItem("token");
+  if (token && !isAuthenticated) {
+    getInfoUser()
+      .then((res) => {
+        const user = res.data;
+        const perms = user.roles.flatMap((role: any) =>
+          role.permissions.map((p: any) => p.slug)
+        );
+        setAuth(user, perms);
+      })
+      .catch((err) => {
+        console.error("Error fetching user info in router:", err);
+      });
+  }
+}, [isAuthenticated, setAuth]);
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Selector Optimization" icon="bolt">
+    Use selector functions to derive data and prevent unnecessary re-renders.
+  </Card>
+  
+  <Card title="Action Naming" icon="tag">
+    Use clear, descriptive action names: `setAuth`, `clearAuth`, `login`, `logout`.
+  </Card>
+  
+  <Card title="Type Safety" icon="shield">
+    Always define TypeScript interfaces for your state and actions.
+  </Card>
+  
+  <Card title="Immutability" icon="lock">
+    Redux Toolkit uses Immer for immutable updates. Zustand requires manual immutability.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Project Structure" icon="folder-tree" href="/development/project-structure">
+    Understand the overall project organization
+  </Card>
+  
+  <Card title="Routing" icon="route" href="/development/routing">
+    Learn about the routing system and protected routes
+  </Card>
+</CardGroup>

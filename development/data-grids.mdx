@@ -1,0 +1,858 @@
+---
+title: "AG Grid Implementation"
+description: "Complete guide to implementing and customizing AG Grid data tables in MKing Admin"
+---
+
+## Overview
+
+MKing Admin uses **AG Grid** for powerful, performant data tables with features like sorting, filtering, pagination, and custom cell renderers. All data grids follow consistent patterns for configuration and customization.
+
+## Basic Grid Setup
+
+### Installing Dependencies
+
+```bash
+npm install ag-grid-react ag-grid-community
+```
+
+### Import Styles
+
+```tsx
+import { AgGridReact } from "ag-grid-react";
+import "ag-grid-community/styles/ag-grid.css";
+import "ag-grid-community/styles/ag-theme-alpine.css";
+```
+
+### Basic Grid Component
+
+```tsx
+import { useState, useMemo } from "react";
+import { AgGridReact } from "ag-grid-react";
+import { Box } from "@mui/material";
+
+export const DataGrid = () => {
+  const [rowData, setRowData] = useState([]);
+
+  const defaultColDef = useMemo(() => ({
+    sortable: true,
+    flex: 1,
+    filter: true,
+    resizable: true,
+    floatingFilter: true,
+    enableCellChangeFlash: true
+  }), []);
+
+  const columnDefs = [
+    { field: "name", headerName: "Name" },
+    { field: "email", headerName: "Email" },
+    { field: "status", headerName: "Status" }
+  ];
+
+  return (
+    <Box className="ag-theme-alpine" style={{ height: "85vh" }}>
+      <AgGridReact
+        rowData={rowData}
+        columnDefs={columnDefs}
+        defaultColDef={defaultColDef}
+        pagination={true}
+        paginationAutoPageSize={true}
+        animateRows={true}
+        enableCellTextSelection={true}
+        rowSelection="multiple"
+      />
+    </Box>
+  );
+};
+```
+
+## Product Page Grid Example
+
+### Column Definitions
+
+```tsx src/pages/Product/ProductPage.tsx
+const [columnDefs, setColumnDefs] = useState<any>([
+  {
+    field: 'images',
+    headerName: 'Imágen',
+    minWidth: 80,
+    cellRenderer: (params: any) => {
+      const images = params.value;
+      if (!images || images.length === 0) return null;
+
+      // Find primary image or use first image
+      let imageToShow = images.find((img: any) => img.is_primary);
+      if (!imageToShow) imageToShow = images[0];
+      if (!imageToShow || !imageToShow.url) return null;
+
+      return (
+        <div style={{ 
+          display: 'flex', 
+          height: '100%', 
+          alignItems: 'center', 
+          overflow: 'hidden', 
+          justifyContent: 'center' 
+        }}>
+          <img
+            src={imageToShow.url}
+            alt="Producto"
+            className="mini-product"
+          />
+        </div>
+      );
+    }
+  },
+  {
+    headerName: "Nombre",
+    field: "name",
+    filter: true,
+    minWidth: 115,
+    cellStyle: { 
+      color: "blue", 
+      fontWeight: "bold", 
+      cursor: "pointer", 
+      textDecoration: "none" 
+    },
+    cellRenderer: (params: any) => (
+      <span
+        style={{ cursor: "pointer", color: "blue", textDecoration: "none" }}
+        onClick={() => handleOpen(params.data)}
+      >
+        {params.value}
+      </span>
+    ),
+  },
+  {
+    headerName: "Precio",
+    field: "price",
+    minWidth: 100,
+    cellRenderer: (params: any) => {
+      return <span>{priceSymbol(params.value)}</span>;
+    }
+  },
+  {
+    headerName: "Colores",
+    field: "colors",
+    minWidth: 130,
+    cellStyle: { display: 'flex', alignItems: 'center' },
+    cellRenderer: (params: any) => {
+      const colors = params.data.colors;
+      if (!colors || colors.length === 0) return null;
+      return (
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          {colors.map((color: any) => {
+            const color1 = color.hex_code;
+            const color2 = color.hex_code_1;
+            return (
+              <span
+                key={color.id}
+                title={color.name}
+                style={{
+                  display: 'inline-block',
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
+                  border: '1px solid #ccc',
+                  background: !!(color1 && color2)
+                    ? `linear-gradient(135deg, ${color1} 50%, ${color2} 50%)`
+                    : color1 || '#ccc',
+                  marginRight: 4,
+                }}
+              />
+            );
+          })}
+        </div>
+      );
+    }
+  },
+  {
+    headerName: "Categoria",
+    field: "category.name",
+    minWidth: 180,
+  },
+  {
+    headerName: "Estatus",
+    field: "status",
+    minWidth: 150,
+    headerTooltip: "esta activo",
+    cellRenderer: (x: any) => {
+      const { status } = x.data;
+      switch (status) {
+        case 1:
+          return <Chip color="success" label="Activo" variant="outlined" />;
+        case 0:
+          return <Chip color="error" label="Inactivo" variant="outlined" />;
+        default:
+          return <Chip className="badge-blue" variant="outlined" />;
+      }
+    }
+  },
+  {
+    headerName: "Acciones",
+    field: "id",
+    minWidth: 150,
+    cellRenderer: (x: any) => {
+      return (
+        <div>
+          <Tooltip title="Editar" arrow placement="bottom"
+            onClick={() => handleOpen(x.data)}
+            slotProps={{
+              popper: {
+                modifiers: [{
+                  name: 'offset',
+                  options: { offset: [0, -15] },
+                }],
+              }
+            }}>
+            <IconButton><EditIcon color="info" /></IconButton>
+          </Tooltip>
+          <Tooltip title="Eliminar" arrow placement="bottom"
+            onClick={() => handleDelete(x.data)}>
+            <IconButton><DeleteIcon color="error" /></IconButton>
+          </Tooltip>
+          <Tooltip title="Inventario" arrow placement="bottom"
+            onClick={() => handleOpenInventory(x.data)}>
+            <IconButton><InventoryIcon color="warning" /></IconButton>
+          </Tooltip>
+        </div>
+      );
+    },
+  },
+]);
+```
+
+### Default Column Configuration
+
+```tsx src/pages/Product/ProductPage.tsx
+const defaultColDef = useMemo(() => {
+  return {
+    sortable: true,
+    flex: 1,
+    filter: true,
+    resizable: true,
+    floatingFilter: true,
+    enableCellChangeFlash: true
+  };
+}, []);
+```
+
+### Grid Rendering
+
+```tsx src/pages/Product/ProductPage.tsx
+<Box id="myGrid" className="ag-theme-alpine" style={{ height: "85vh" }}>
+  <AgGridReact
+    rowData={rowData}
+    columnDefs={columnDefs}
+    defaultColDef={defaultColDef}
+    rowSelection="multiple"
+    pagination={true}
+    paginationAutoPageSize={true}
+    animateRows={true}
+    enableCellTextSelection={true}
+  />
+</Box>
+```
+
+## Client Page Grid Example
+
+### Image Cell Renderer
+
+```tsx src/pages/client/ClientPage.tsx
+{
+  headerName: "Imagen",
+  field: "clientDetails",
+  minWidth: 100,
+  maxWidth: 100,
+  cellRenderer: (params: any) => {
+    const details = params.value;
+    const imageUrl = details && details.length > 0 ? details[0].img_client : null;
+
+    if (!imageUrl) {
+      return (
+        <div style={{
+          width: '40px',
+          height: '40px',
+          borderRadius: '50%',
+          backgroundColor: '#eee',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#999',
+          fontSize: '10px'
+        }}>
+          N/A
+        </div>
+      );
+    }
+
+    return (
+      <img
+        src={imageUrl}
+        alt="Cliente"
+        style={{
+          width: '40px',
+          height: '40px',
+          borderRadius: '50%',
+          objectFit: 'cover',
+          border: '1px solid #ddd'
+        }}
+      />
+    );
+  }
+}
+```
+
+### Date Formatting Cell Renderer
+
+```tsx src/pages/client/ClientPage.tsx
+{
+  headerName: "Fecha Creación",
+  field: "createdAt",
+  minWidth: 180,
+  cellRenderer: (params: any) => {
+    if (!params.value) return '';
+    const date = new Date(params.value);
+    return date.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+}
+```
+
+### Status Chip Renderer
+
+```tsx src/pages/client/ClientPage.tsx
+{
+  headerName: "Estado",
+  field: "deletedAt",
+  minWidth: 120,
+  cellRenderer: (x: any) => {
+    const { deletedAt } = x.data;
+    return deletedAt ? (
+      <Chip color="error" label="Eliminado" variant="outlined" />
+    ) : (
+      <Chip color="success" label="Activo" variant="outlined" />
+    );
+  }
+}
+```
+
+## Employee Page Grid Example
+
+### Avatar Cell Renderer
+
+```tsx src/pages/Employees/EmployeesPage.tsx
+{
+  headerName: "Foto",
+  field: "employee_img",
+  width: 80,
+  cellRenderer: (params: any) => {
+    let imgPath = undefined;
+    if (params.value) {
+      if (params.value.startsWith('http')) {
+        imgPath = params.value;
+      } else if (params.value.includes('/')) {
+        // S3 Path
+        imgPath = `https://sysmking.s3.us-east-1.amazonaws.com/${params.value}`;
+      } else {
+        // Local Path
+        imgPath = `${import.meta.env.VITE_API_URL}/uploads/employees/${params.value}`;
+      }
+    }
+    return (
+      <Box
+        onClick={() => handleEdit(params.data.id)}
+        sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+      >
+        <Avatar src={imgPath} alt="Emp" sx={{ width: 30, height: 30 }} />
+      </Box>
+    );
+  }
+}
+```
+
+### Value Getter for Computed Fields
+
+```tsx src/pages/Employees/EmployeesPage.tsx
+{
+  headerName: "Nombre",
+  field: "user.name",
+  flex: 1,
+  valueGetter: (params: any) => 
+    `${params.data.user?.name || ''} ${params.data.user?.lastName || ''}`,
+  cellRenderer: (params: any) => (
+    <Box
+      onClick={() => handleEdit(params.data.id)}
+      sx={{
+        cursor: 'pointer',
+        color: 'primary.main',
+        '&:hover': {
+          textDecoration: 'underline',
+          color: 'primary.dark'
+        }
+      }}
+    >
+      {params.value}
+    </Box>
+  )
+}
+```
+
+### Nested Object Fields
+
+```tsx src/pages/Employees/EmployeesPage.tsx
+const columnDefs = useMemo(() => [
+  { headerName: "ID", field: "id", width: 70 },
+  { headerName: "Email", field: "user.email", flex: 1 },
+  { headerName: "Puesto", field: "employeeLabor.job_title", flex: 1 },
+  { headerName: "Departamento", field: "employeeLabor.department", flex: 1 },
+  { headerName: "Teléfono", field: "phone", width: 120 },
+], []);
+```
+
+### Employee Grid Configuration
+
+```tsx src/pages/Employees/EmployeesPage.tsx
+<div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
+  <AgGridReact
+    rowData={employees}
+    columnDefs={columnDefs}
+    defaultColDef={{ 
+      resizable: true, 
+      sortable: true, 
+      filter: true 
+    }}
+    pagination={true}
+    paginationPageSize={10}
+    rowHeight={50}
+  />
+</div>
+```
+
+## Custom Cell Renderers
+
+### Clickable Name with Custom Styling
+
+<CodeGroup>
+```tsx Product Example
+{
+  headerName: "Nombre",
+  field: "name",
+  cellStyle: { 
+    color: "blue", 
+    fontWeight: "bold", 
+    cursor: "pointer" 
+  },
+  cellRenderer: (params: any) => (
+    <span
+      style={{ cursor: "pointer", color: "blue" }}
+      onClick={() => handleOpen(params.data)}
+    >
+      {params.value}
+    </span>
+  ),
+}
+```
+
+```tsx Employee Example
+{
+  headerName: "Nombre",
+  field: "user.name",
+  cellRenderer: (params: any) => (
+    <Box
+      onClick={() => handleEdit(params.data.id)}
+      sx={{
+        cursor: 'pointer',
+        color: 'primary.main',
+        '&:hover': {
+          textDecoration: 'underline',
+          color: 'primary.dark'
+        }
+      }}
+    >
+      {params.value}
+    </Box>
+  )
+}
+```
+</CodeGroup>
+
+### Action Buttons with Tooltips
+
+```tsx src/pages/Product/ProductPage.tsx
+{
+  headerName: "Acciones",
+  field: "id",
+  minWidth: 150,
+  cellRenderer: (x: any) => {
+    return (
+      <div>
+        <Tooltip 
+          title="Editar" 
+          arrow 
+          placement="bottom"
+          onClick={() => handleOpen(x.data)}
+          slotProps={{
+            popper: {
+              modifiers: [{
+                name: 'offset',
+                options: { offset: [0, -15] },
+              }],
+            }
+          }}
+        >
+          <IconButton>
+            <EditIcon color="info" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Eliminar" arrow placement="bottom">
+          <IconButton onClick={() => handleDelete(x.data)}>
+            <DeleteIcon color="error" />
+          </IconButton>
+        </Tooltip>
+      </div>
+    );
+  },
+}
+```
+
+### Gradient Color Swatches
+
+```tsx src/pages/Product/ProductPage.tsx
+{
+  headerName: "Colores",
+  field: "colors",
+  minWidth: 130,
+  cellStyle: { display: 'flex', alignItems: 'center' },
+  cellRenderer: (params: any) => {
+    const colors = params.data.colors;
+    if (!colors || colors.length === 0) return null;
+    
+    return (
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        {colors.map((color: any) => {
+          const color1 = color.hex_code;
+          const color2 = color.hex_code_1;
+          const hasGradient = !!(color1 && color2);
+          
+          return (
+            <span
+              key={color.id}
+              title={color.name}
+              style={{
+                display: 'inline-block',
+                width: 20,
+                height: 20,
+                borderRadius: '50%',
+                border: '1px solid #ccc',
+                background: hasGradient
+                  ? `linear-gradient(135deg, ${color1} 50%, ${color2} 50%)`
+                  : color1 || '#ccc',
+              }}
+            />
+          );
+        })}
+      </div>
+    );
+  }
+}
+```
+
+## Grid Features
+
+### Column Configuration Options
+
+<Tabs>
+  <Tab title="Basic Properties">
+    ```tsx
+    {
+      field: "name",              // Data field name
+      headerName: "Name",         // Display name
+      minWidth: 150,              // Minimum column width
+      maxWidth: 300,              // Maximum column width
+      width: 200,                 // Fixed width
+      flex: 1,                    // Flexible width
+    }
+    ```
+  </Tab>
+  <Tab title="Sorting & Filtering">
+    ```tsx
+    {
+      sortable: true,             // Enable sorting
+      filter: true,               // Enable filter menu
+      floatingFilter: true,       // Show filter input below header
+      comparator: customSort,     // Custom sort function
+      filterParams: {},           // Filter configuration
+    }
+    ```
+  </Tab>
+  <Tab title="Styling">
+    ```tsx
+    {
+      cellStyle: {                // Static cell styles
+        color: "blue",
+        fontWeight: "bold"
+      },
+      cellClass: "my-cell-class", // CSS class name
+      headerClass: "my-header",   // Header CSS class
+    }
+    ```
+  </Tab>
+  <Tab title="Custom Rendering">
+    ```tsx
+    {
+      cellRenderer: (params) => { // Custom cell content
+        return <div>{params.value}</div>;
+      },
+      valueGetter: (params) => {  // Computed value
+        return params.data.field1 + params.data.field2;
+      },
+      valueFormatter: (params) => { // Format display value
+        return `$${params.value}`;
+      },
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Grid Configuration Options
+
+```tsx
+<AgGridReact
+  // Data
+  rowData={rowData}
+  columnDefs={columnDefs}
+  defaultColDef={defaultColDef}
+  
+  // Selection
+  rowSelection="multiple"        // 'single' | 'multiple'
+  
+  // Pagination
+  pagination={true}
+  paginationAutoPageSize={true}  // Auto-calculate page size
+  paginationPageSize={20}        // Fixed page size
+  
+  // UI Features
+  animateRows={true}             // Animate row changes
+  enableCellTextSelection={true} // Allow text selection
+  rowHeight={50}                 // Fixed row height
+  
+  // Performance
+  enableCellChangeFlash={true}   // Flash changed cells
+  suppressRowClickSelection={true} // Disable click selection
+/>
+```
+
+## Data Loading and Updates
+
+### Initial Data Load
+
+```tsx src/pages/Product/ProductPage.tsx
+useEffect(() => {
+  getProducts()
+    .then((res: any) => {
+      setRowData(res.data.products);
+      setCatalogs([{
+        category: res.data.categories,
+        colors: res.data.colors,
+        sizes: res.data.sizes
+      }]);
+    })
+    .catch((err: any) => {
+      console.log(err);
+    });
+}, []);
+```
+
+### Updating Rows After Edit
+
+```tsx src/pages/Product/ProductPage.tsx
+const handleSave = (product: any) => {
+  if (selectedProduct) {
+    setRowData((prevData: any) =>
+      prevData.map((item: any) => 
+        item.id === product.id ? product : item
+      )
+    );
+  } else {
+    setRowData((prevData: any) => [...prevData, product]);
+  }
+  handleClose();
+};
+```
+
+### Deleting Rows
+
+```tsx src/pages/Product/ProductPage.tsx
+const handleDelete = (product: any) => {
+  Swal.fire({
+    title: '¿Estás seguro?',
+    text: `¿Deseas eliminar el producto ${product.name}?`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Sí, eliminar',
+  }).then((result) => {
+    if (result.isConfirmed) {
+      delProduct(product.id).then(() => {
+        setRowData((prevData: any) => 
+          prevData.filter((item: any) => item.id !== product.id)
+        );
+        toast.success('Producto eliminado correctamente');
+      });
+    }
+  });
+};
+```
+
+## Advanced Patterns
+
+### Dynamic Column Configuration
+
+```tsx
+const [columnDefs, setColumnDefs] = useState<any>([]);
+
+useEffect(() => {
+  const newColumns = [
+    { field: "id", headerName: "ID" },
+    // Add columns dynamically based on data
+    ...Object.keys(data[0] || {}).map(key => ({
+      field: key,
+      headerName: key.toUpperCase()
+    }))
+  ];
+  setColumnDefs(newColumns);
+}, [data]);
+```
+
+### Conditional Cell Styling
+
+```tsx
+{
+  field: "status",
+  cellStyle: (params) => {
+    if (params.value === 'active') {
+      return { backgroundColor: '#d4edda', color: '#155724' };
+    } else if (params.value === 'inactive') {
+      return { backgroundColor: '#f8d7da', color: '#721c24' };
+    }
+    return null;
+  }
+}
+```
+
+### Header Tooltips
+
+```tsx src/pages/Product/ProductPage.tsx
+{
+  headerName: "Estatus",
+  field: "status",
+  headerTooltip: "Estado activo/inactivo del producto",
+}
+```
+
+## Performance Optimization
+
+### Memoize Column Definitions
+
+```tsx src/pages/Employees/EmployeesPage.tsx
+const columnDefs = useMemo(() => [
+  { headerName: "ID", field: "id", width: 70 },
+  { headerName: "Nombre", field: "user.name", flex: 1 },
+  // ... more columns
+], []);
+```
+
+### Memoize Default Column Config
+
+```tsx src/pages/Product/ProductPage.tsx
+const defaultColDef = useMemo(() => ({
+  sortable: true,
+  flex: 1,
+  filter: true,
+  resizable: true,
+  floatingFilter: true,
+  enableCellChangeFlash: true
+}), []);
+```
+
+### Virtual Scrolling
+
+AG Grid automatically implements virtual scrolling for large datasets. No additional configuration needed for optimal performance.
+
+## Styling
+
+### Custom CSS Classes
+
+```css
+.ag-theme-alpine {
+  --ag-header-background-color: #f8f9fa;
+  --ag-odd-row-background-color: #ffffff;
+  --ag-border-color: #dee2e6;
+}
+
+.mini-product {
+  max-width: 50px;
+  max-height: 50px;
+  object-fit: contain;
+}
+```
+
+### Height Configuration
+
+```tsx
+// Auto height based on container
+<Box className="ag-theme-alpine" style={{ height: "85vh" }}>
+  <AgGridReact ... />
+</Box>
+
+// Fixed height
+<div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
+  <AgGridReact ... />
+</div>
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Column Configuration">
+    - Use `flex` for responsive columns, `width` for fixed-width columns
+    - Enable `floatingFilter` for better user experience
+    - Set appropriate `minWidth` to prevent column squishing
+    - Use `headerTooltip` to explain complex column headers
+  </Accordion>
+
+  <Accordion title="Cell Renderers">
+    - Keep cell renderers simple and performant
+    - Avoid complex logic inside cell renderers
+    - Use Material-UI components for consistency
+    - Handle null/undefined values gracefully
+  </Accordion>
+
+  <Accordion title="Performance">
+    - Memoize column definitions with `useMemo`
+    - Use `valueGetter` for computed fields instead of processing data
+    - Enable `suppressRowClickSelection` if not using row selection
+    - Implement pagination for large datasets
+  </Accordion>
+
+  <Accordion title="User Experience">
+    - Always enable sorting and filtering
+    - Use meaningful column headers
+    - Implement proper loading states
+    - Provide visual feedback for actions
+  </Accordion>
+</AccordionGroup>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Component Overview" icon="shapes" href="/development/components-overview">
+    Learn about the overall component architecture
+  </Card>
+  <Card title="Form Handling" icon="file-pen" href="/development/forms">
+    Explore react-hook-form implementation
+  </Card>
+</CardGroup>

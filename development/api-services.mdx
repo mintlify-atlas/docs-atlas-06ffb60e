@@ -1,0 +1,356 @@
+---
+title: "API Service Layer"
+description: "Comprehensive guide to the API service architecture using Axios interceptors and domain-specific service patterns"
+---
+
+## Overview
+
+The MKing Admin application uses a centralized service layer architecture built on Axios. This pattern provides consistent HTTP communication, authentication handling, and error management across all API interactions.
+
+## Architecture Pattern
+
+The service layer is organized into domain-specific modules:
+
+- **service.tsx** - Core service with shared interceptors and main business logic
+- **admin.service.tsx** - Admin panel operations (products, clients, employees, roles)
+- **ecomme.service.tsx** - E-commerce related services
+- **event.service.ts** - Calendar and event management
+
+<Note>
+All service files share the same Axios instance with global request/response interceptors for authentication and error handling.
+</Note>
+
+## Base Configuration
+
+Services use environment variables for API endpoint configuration:
+
+```tsx
+const apiUrl = import.meta.env.VITE_BASE_URL;
+```
+
+This allows different environments (development, staging, production) to point to different API servers.
+
+## Axios Interceptors
+
+### Request Interceptor
+
+The request interceptor automatically attaches JWT tokens to all outgoing requests:
+
+```tsx
+axios.interceptors.request.use(
+  (config: any) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers["Authorization"] = "Bearer " + token;
+    }
+    return config;
+  },
+  function (error) {
+    console.log(error);
+    return Promise.reject(error);
+  }
+);
+```
+
+**Key Features:**
+- Retrieves JWT token from localStorage
+- Adds Bearer token to Authorization header
+- Applied globally to all requests
+
+<Info>
+The token is stored in localStorage after successful login via the `LoginService` function.
+</Info>
+
+### CORS Headers (Admin Services)
+
+Admin and e-commerce services include additional CORS headers:
+
+```tsx
+config.headers["Access-Control-Allow-Origin"] = "*";
+config.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE";
+config.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization";
+config.headers["Content-Type"] = "application/json";
+```
+
+Source: `admin.service.tsx:11-14`, `ecomme.service.tsx:11-14`
+
+### Response Interceptor
+
+The response interceptor handles errors globally using the `Response` utility:
+
+```tsx
+axios.interceptors.response.use(
+  (res: any) => {
+    return res;
+  },
+  (err) => {
+    const status = err.response.status;
+    Response(status);
+    return Promise.reject(err);
+  }
+);
+```
+
+**Error Handling Flow:**
+1. Intercepts failed responses
+2. Extracts HTTP status code
+3. Passes to `Response()` utility for user notification
+4. Rejects promise for component-level handling
+
+Source: `service.tsx:35-44`
+
+<Warning>
+The Response utility automatically redirects to `/login` on 401 errors and clears the authentication token.
+</Warning>
+
+## Service Function Patterns
+
+### Basic GET Request
+
+```tsx
+export const getInfoUser = () => axios.get(`${apiUrl}/user`);
+
+export const getProducts = async () => 
+  await axios.get(`${apiUrl}/product`);
+```
+
+Source: `service.tsx:134`, `admin.service.tsx:37`
+
+### GET with Parameters
+
+```tsx
+export const getEvents = (start?: string, end?: string) => {
+  return axios.get(`${apiUrl}/events`, {
+    params: { start, end }
+  });
+};
+
+export const SaldoVencido = (date: any, signal: any) =>
+  axios.get(`${apiUrl}/Reporte_saldos_vencidos?fecha=${date}`, signal);
+```
+
+Source: `event.service.ts:15-19`, `service.tsx:50-51`
+
+### GET with Path Parameters
+
+```tsx
+export const detail = (id: number) =>
+  axios.get(`${apiUrl}/detalle_recuperacion/${id}`);
+
+export const getProduct = async (id: number) => 
+  await axios.get(`${apiUrl}/product/${id}`);
+```
+
+Source: `service.tsx:80-81`, `admin.service.tsx:48`
+
+### POST Requests
+
+```tsx
+export const LoginService = (body: any) => 
+  axios.post(`${apiUrl}/login`, body);
+
+export const guardarComentarios = (body: any) =>
+  axios.post(`${apiUrl}/guarda_comentario`, body);
+
+export const createEvent = (event: CalendarEvent) => {
+  return axios.post(`${apiUrl}/events`, event);
+};
+```
+
+Source: `service.tsx:46`, `service.tsx:65-66`, `event.service.ts:21-23`
+
+### PUT Requests
+
+```tsx
+export const updateEvent = (id: number | string, event: CalendarEvent) => {
+  return axios.put(`${apiUrl}/events/${id}`, event);
+};
+
+export const updateRole = async (id: number, body: any) => 
+  await axios.put(`${apiUrl}/roles/${id}`, body);
+```
+
+Source: `event.service.ts:25-27`, `admin.service.tsx:108`
+
+### DELETE Requests
+
+```tsx
+export const supComentario = (id: number) =>
+  axios.delete(`${apiUrl}/comentario/${id}`);
+
+export const deleteEvent = (id: number | string) => {
+  return axios.delete(`${apiUrl}/events/${id}`);
+};
+```
+
+Source: `service.tsx:98-99`, `event.service.ts:29-31`
+
+### Multipart Form Data
+
+For file uploads, services override the default Content-Type:
+
+```tsx
+export const saveProduct = async (body: any) => 
+  await axios.post(`${apiUrl}/product`, body, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  });
+
+export const saveEmployee = async (body: any) => 
+  await axios.post(`${apiUrl}/employee`, body, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+```
+
+Source: `admin.service.tsx:38-42`, `admin.service.tsx:118-120`
+
+<Info>
+Products, employees, and quotations support file uploads for images and documents.
+</Info>
+
+### PDF Downloads
+
+```tsx
+export const downloadAdminQuotationPdf = async (uuid: string) => {
+  return await axios.get(`${apiUrl}/quotation_admin/${uuid}/pdf`, { 
+    responseType: 'blob' 
+  });
+};
+```
+
+Source: `admin.service.tsx:96-98`
+
+### Abort Signal Support
+
+Some services support request cancellation:
+
+```tsx
+export const HistoricoAnual = (signal: any) =>
+  axios.get(`${apiUrl}/historicoA_saldos_vencidos`, signal);
+
+export const pagoProveedorList = (body: any, signal: any) =>
+  axios.post(`${apiUrl}/GetListPagoProveedor`, body, signal);
+```
+
+Source: `service.tsx:53-54`, `service.tsx:107-108`
+
+<Note>
+Abort signals are useful for canceling long-running requests when a component unmounts.
+</Note>
+
+## Domain-Specific Services
+
+### Core Services (service.tsx)
+
+- Authentication: `LoginService`
+- Dashboards: `TotalesService`, `Cartera`
+- Reports: `SaldoVencido`, `HistoricoAnual`, `reporteRecuperacion`
+- Comments: `guardarComentarios`, `obtenerComentarios`
+- Messaging: `senMessageWhats`, `getTemplates`
+- Payments: `pagoProveedorList`, `getListPayApply`
+
+### Admin Services (admin.service.tsx)
+
+**Product Management:**
+- `getProducts`, `getProduct`, `saveProduct`, `updateProduct`, `delProduct`
+- `getCategories`, `createCategory`, `updateCategory`, `deleteCategory`
+- `getColors`, `getSizes`, `setPrimaryImage`, `delImg`
+
+**Client Management:**
+- `getClients`, `getClient`, `saveClient`, `updateClient`, `delClient`
+- `getClientDetails`, `saveClientDetail`, `updateClientDetail`
+
+**Employee & User Management:**
+- `getEmployees`, `saveEmployee`, `updateEmployee`, `deleteEmployee`
+- `getUsers`, `deleteUser`
+
+**Roles & Permissions:**
+- `getRoles`, `createRole`, `updateRole`, `deleteRole`
+- `getPermissions`, `createPermission`, `deletePermission`
+
+**Quotations:**
+- `getAdminQuotations`, `createAdminQuotation`, `downloadAdminQuotationPdf`
+
+**Inventory:**
+- `getInventoryByProduct`, `saveInventory`, `updateInventory`
+
+Source: `admin.service.tsx:37-133`
+
+### E-commerce Services (ecomme.service.tsx)
+
+- `getProducts` - Product catalog
+- `getUnits`, `getWarehouses` - Inventory metadata
+
+Source: `ecomme.service.tsx:35-40`
+
+### Event Services (event.service.ts)
+
+Calendar event CRUD operations with TypeScript interface:
+
+```tsx
+export interface CalendarEvent {
+  id?: string;
+  title: string;
+  description?: string;
+  start: string | Date;
+  end: string | Date;
+  allDay?: boolean;
+  color?: string;
+  display?: string;
+}
+```
+
+Services: `getEvents`, `createEvent`, `updateEvent`, `deleteEvent`
+
+Source: `event.service.ts:4-31`
+
+## Error Handling
+
+All services inherit global error handling through the response interceptor. The `Response` utility handles:
+
+- **Network errors** (status 0) - Server unreachable
+- **401 Unauthorized** - Token expiration with auto-redirect
+- **403 Forbidden** - Permission errors
+- **404 Not Found** - Missing resources
+- **422 Validation errors** - Form validation feedback
+- **500 Server errors** - Internal server issues
+
+See [Authentication Service](/development/authentication-service) for detailed error handling flows.
+
+## Best Practices
+
+1. **Always use typed parameters** - Prefer `id: number` over `id: any`
+2. **Use async/await** - Modern services use async functions
+3. **Include abort signals** - For long-running requests that may be canceled
+4. **Handle file uploads properly** - Override Content-Type for multipart data
+5. **Destructure at call site** - Services return full Axios response objects
+
+```tsx
+// Component usage example
+const { data } = await getProducts();
+const products = data.products;
+```
+
+<Warning>
+Avoid calling services directly in component render functions. Use useEffect or event handlers instead.
+</Warning>
+
+## Request Cancellation
+
+The core service includes cancel token setup (currently disabled):
+
+```tsx
+let cancelToken: any;
+cancelToken = axios.CancelToken.source();
+
+if (cancelToken) {
+  cancelToken.cancel("Operations cancelled due to new request");
+}
+```
+
+Source: `service.tsx:5-33`
+
+<Note>
+This cancellation logic is currently inactive. Consider implementing AbortController for modern request cancellation.
+</Note>

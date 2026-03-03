@@ -1,0 +1,497 @@
+---
+title: Product Catalog Management
+description: Comprehensive product management with inventory tracking, multi-image support, and variant management
+---
+
+Manage your entire product catalog with support for variants, inventory tracking, and rich media.
+
+## Overview
+
+The product management system provides:
+
+- **Multi-Image Support** - Upload multiple product images with primary image selection
+- **Product Variants** - Manage colors and sizes for each product
+- **Inventory Tracking** - Track stock levels by variant
+- **Category Management** - Organize products into categories
+- **Real-time Data Grid** - Fast filtering, sorting, and editing with AG Grid
+- **Form Validation** - Comprehensive validation for product data
+
+## Product List View
+
+The main product page (`src/pages/Product/ProductPage.tsx:18`) displays all products in an interactive data grid:
+
+### Key Features
+
+<CardGroup cols={2}>
+  <Card title="Image Preview" icon="image">
+    Display primary product image in grid with automatic fallback to first image
+  </Card>
+  <Card title="Inline Editing" icon="pen-to-square">
+    Click product name to open edit dialog
+  </Card>
+  <Card title="Stock Management" icon="warehouse">
+    Track inventory by color and size combinations
+  </Card>
+  <Card title="Status Indicators" icon="circle-check">
+    Visual chips showing active/inactive status
+  </Card>
+</CardGroup>
+
+### Loading Products
+
+Products are fetched on component mount (`src/pages/Product/ProductPage.tsx:55-66`):
+
+```tsx
+import { getProducts } from "../../services/admin.service";
+
+useEffect(() => {
+  getProducts()
+    .then((res) => {
+      setRowData(res.data.products);
+      setCatalogs([{ 
+        category: res.data.categories, 
+        colors: res.data.colors, 
+        sizes: res.data.sizes 
+      }]);
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+}, []);
+```
+
+### Grid Configuration
+
+The data grid uses AG Grid with custom renderers (`src/pages/Product/ProductPage.tsx:112-307`):
+
+```tsx
+const columnDefs = [
+  {
+    field: 'images',
+    headerName: 'Imagen',
+    cellRenderer: (params) => {
+      const images = params.value;
+      // Find primary image or use first image
+      let imageToShow = images.find((img) => img.is_primary);
+      if (!imageToShow) imageToShow = images[0];
+      
+      return (
+        <img
+          src={imageToShow.url}
+          alt="Producto"
+          className="mini-product"
+        />
+      );
+    }
+  },
+  {
+    headerName: "Nombre",
+    field: "name",
+    cellStyle: { color: "blue", fontWeight: "bold", cursor: "pointer" },
+    cellRenderer: (params) => (
+      <span onClick={() => handleOpen(params.data)}>
+        {params.value}
+      </span>
+    ),
+  },
+  {
+    headerName: "Precio",
+    field: "price",
+    cellRenderer: (params) => <span>{priceSymbol(params.value)}</span>
+  },
+  {
+    headerName: "Colores",
+    field: "colors",
+    cellRenderer: (params) => {
+      const colors = params.data.colors;
+      return (
+        <div style={{ display: 'flex', gap: 4 }}>
+          {colors.map((color) => {
+            const gradient = !!(color.hex_code && color.hex_code_1)
+              ? `linear-gradient(135deg, ${color.hex_code} 50%, ${color.hex_code_1} 50%)`
+              : color.hex_code || '#ccc';
+            
+            return (
+              <span
+                key={color.id}
+                title={color.name}
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
+                  background: gradient,
+                  border: '1px solid #ccc',
+                }}
+              />
+            );
+          })}
+        </div>
+      );
+    }
+  },
+  {
+    headerName: "Acciones",
+    cellRenderer: (params) => (
+      <div>
+        <IconButton onClick={() => handleOpen(params.data)}>
+          <EditIcon color="info" />
+        </IconButton>
+        <IconButton onClick={() => handleDelete(params.data)}>
+          <DeleteIcon color="error" />
+        </IconButton>
+        <IconButton onClick={() => handleOpenInventory(params.data)}>
+          <InventoryIcon color="warning" />
+        </IconButton>
+      </div>
+    )
+  }
+];
+```
+
+## Product Form Dialog
+
+The product form (`src/pages/Product/components/FormProduct.tsx:60`) provides a comprehensive editing experience:
+
+### Form Structure
+
+<Tabs>
+  <Tab title="Basic Information">
+    - Product Name (required)
+    - Description
+    - SKU (required)
+    - Price (required)
+    - Category (required)
+    - Status (Active/Inactive)
+  </Tab>
+  <Tab title="Variants">
+    - Colors (multi-select with color chips)
+    - Sizes (multi-select)
+  </Tab>
+  <Tab title="Images">
+    - Upload multiple images
+    - Set primary image
+    - Delete existing images
+    - 2MB file size limit
+  </Tab>
+</Tabs>
+
+### Form Validation
+
+Custom validation function ensures data integrity (`src/pages/Product/components/FormProduct.tsx:35-47`):
+
+```tsx
+const validateForm = (data) => {
+  const errors = {};
+  
+  if (!data.name) errors.name = 'El nombre es requerido';
+  if (!data.sku) errors.sku = 'El SKU es requerido';
+  if (data.price === undefined || data.price < 0) {
+    errors.price = 'El precio debe ser mayor a 0';
+  }
+  if (!data.colors || data.colors.length === 0) {
+    errors.colors = 'Debe seleccionar al menos un color';
+  }
+  if (!data.sizes || data.sizes.length === 0) {
+    errors.sizes = 'Debe seleccionar al menos una talla';
+  }
+  if (!data.category_id) errors.category_id = 'La categoría es requerida';
+  if (!data.img_product || data.img_product.length === 0) {
+    errors.img_product = 'Debe subir al menos una imagen';
+  }
+  
+  return errors;
+};
+```
+
+### Color Selector with Visual Preview
+
+The color selector shows visual chips with gradient support (`src/pages/Product/components/FormProduct.tsx:348-425`):
+
+```tsx
+<Controller
+  name="colors"
+  control={control}
+  render={({ field }) => (
+    <Select
+      {...field}
+      multiple
+      value={field.value || []}
+      renderValue={(selected) => (
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+          {selected.map((colorId) => {
+            const color = colors.find(col => col.id === colorId);
+            const showGradient = !!(color?.hex_code && color?.hex_code_1);
+            
+            return (
+              <Chip
+                key={colorId}
+                label={color?.name || colorId}
+                size="small"
+                sx={{
+                  background: showGradient
+                    ? `linear-gradient(135deg, ${color.hex_code} 50%, ${color.hex_code_1} 50%)`
+                    : color?.hex_code || '#ccc',
+                  color: '#fff',
+                  textShadow: '0px 0px 3px rgba(0,0,0,0.8)',
+                }}
+              />
+            );
+          })}
+        </Box>
+      )}
+    >
+      {colors.map((color) => (
+        <MenuItem key={color.id} value={color.id}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box
+              sx={{
+                width: 16,
+                height: 16,
+                borderRadius: '50%',
+                background: showGradient
+                  ? `linear-gradient(135deg, ${color.hex_code} 50%, ${color.hex_code_1} 50%)`
+                  : color.hex_code || '#ccc',
+              }}
+            />
+            {color.name}
+          </Box>
+        </MenuItem>
+      ))}
+    </Select>
+  )}
+/>
+```
+
+### Image Upload Component
+
+The image uploader supports multiple files with primary image selection (`src/pages/Product/components/FormProduct.tsx:477-497`):
+
+```tsx
+<ImageUploader
+  selectedImages={selectedImages}
+  onImagesSelect={(files) => {
+    setSelectedImages(files);
+    field.onChange(files);
+  }}
+  selectedProduct={selectedProduct}
+  deleteImg={deleteImg}
+  onPrimaryImageChange={(imageId) => {
+    setPrimaryImageId(imageId);
+  }}
+  onImageUpdate={onImageUpdate}
+/>
+```
+
+<Warning>
+  Image file size is limited to 2MB. Files exceeding this limit will be rejected with an error message.
+</Warning>
+
+## Saving Products
+
+The form submission handles both create and update operations (`src/pages/Product/components/FormProduct.tsx:138-217`):
+
+```tsx
+const onSubmit = async (data) => {
+  // Validate form
+  const validationErrors = validateForm(data);
+  if (Object.keys(validationErrors).length > 0) {
+    Object.entries(validationErrors).forEach(([key, message]) => {
+      setError(key, { type: 'manual', message });
+    });
+    return;
+  }
+  
+  setSaving(true);
+  try {
+    const formData = new FormData();
+    
+    // Format data
+    const submitData = {
+      ...data,
+      status: data.status ? 1 : 0,
+      colors: data.colors || undefined,
+      sizes: data.sizes || undefined,
+    };
+    
+    // Append form fields
+    Object.keys(submitData).forEach(key => {
+      if (key === 'colors' || key === 'sizes') {
+        submitData[key].forEach((id, index) => {
+          formData.append(`${key}[${index}]`, id.toString());
+        });
+      } else if (key !== 'img_product') {
+        formData.append(key, submitData[key]?.toString() || '');
+      }
+    });
+    
+    // Append new images only
+    if (selectedImages.length > 0) {
+      const imagesArray = [];
+      for (const image of selectedImages) {
+        if (image instanceof File) {
+          if (image.size > 2 * 1024 * 1024) {
+            return toast.error('La imagen no debe pesar más de 2 megabytes');
+          }
+          imagesArray.push(image);
+        }
+      }
+      imagesArray.forEach((image, index) => {
+        formData.append(`images[${index}]`, image);
+      });
+    }
+    
+    // Add primary image ID
+    if (primaryImageId) {
+      formData.append('primaryImageId', primaryImageId.toString());
+    }
+    
+    // Submit
+    if (selectedProduct) {
+      await updateProduct(selectedProduct.id, formData);
+      toast.success('Producto actualizado exitosamente');
+    } else {
+      await saveProduct(formData);
+      toast.success('Producto guardado exitosamente');
+    }
+    
+    handleSave?.(res.data);
+    onClose();
+  } catch (error) {
+    toast.error('Ocurrió un error al guardar el producto');
+  } finally {
+    setSaving(false);
+  }
+};
+```
+
+## Inventory Management
+
+The inventory modal tracks stock by color and size combinations (`src/pages/Product/ProductPage.tsx:309-316`):
+
+```tsx
+const handleOpenInventory = (product) => {
+  setCurrentProductInventory(product);
+  setInventoryOpen(true);
+};
+
+<InventoryModal
+  open={inventoryOpen}
+  onClose={() => setInventoryOpen(false)}
+  product={currentProductInventory}
+/>
+```
+
+## Delete Product
+
+Product deletion includes a confirmation dialog (`src/pages/Product/ProductPage.tsx:80-110`):
+
+```tsx
+const handleDelete = (product) => {
+  Swal.fire({
+    title: '¿Estás seguro?',
+    text: `¿Deseas eliminar el producto ${product.name}?`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#3085d6',
+    cancelButtonColor: '#d33',
+    confirmButtonText: 'Sí, eliminar',
+    cancelButtonText: 'Cancelar',
+  }).then((result) => {
+    if (result.isConfirmed) {
+      delProduct(product.id)
+        .then(res => {
+          setRowData(prevData => 
+            prevData.filter(item => item.id !== product.id)
+          );
+          toast.success('Producto eliminado correctamente');
+        })
+        .catch(err => {
+          toast.error('Ocurrió un error al borrar el producto');
+        });
+    }
+  });
+};
+```
+
+## API Service Methods
+
+Product API endpoints (`src/services/admin.service.tsx:37-72`):
+
+```tsx
+// Get all products
+export const getProducts = async () => 
+  await axios.get(`${apiUrl}/product`);
+
+// Create product
+export const saveProduct = async (body) => 
+  await axios.post(`${apiUrl}/product`, body, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+
+// Update product
+export const updateProduct = async (id, body) => 
+  await axios.put(`${apiUrl}/product/${id}`, body, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+
+// Get single product
+export const getProduct = async (id) => 
+  await axios.get(`${apiUrl}/product/${id}`);
+
+// Delete product image
+export const delImg = async (id) => 
+  await axios.delete(`${apiUrl}/product_image/${id}`);
+
+// Delete product
+export const delProduct = async (id) => 
+  await axios.delete(`${apiUrl}/product/${id}`);
+
+// Set primary image
+export const setPrimaryImage = async (id) => 
+  await axios.put(`${apiUrl}/product_image/${id}/primary`);
+```
+
+## User Experience Enhancements
+
+### Loading States
+
+```tsx
+<Fade in={saving} unmountOnExit>
+  <Box sx={{ /* overlay styles */ }}>
+    <CircularProgress />
+    <Typography>Guardando producto...</Typography>
+  </Box>
+</Fade>
+```
+
+### Floating Action Button
+
+Quick access to create new products (`src/pages/Product/ProductPage.tsx:324-346`):
+
+```tsx
+<Fab
+  aria-label="add"
+  sx={{
+    position: 'fixed',
+    top: 80,
+    right: 16,
+    zIndex: 1000,
+  }}
+  onClick={() => handleOpen(null)}
+>
+  <Tooltip title="Agregar Producto" arrow placement="left">
+    <AddCircleOutlineIcon color="success" sx={{ fontSize: '30px' }} />
+  </Tooltip>
+</Fab>
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Inventory API" icon="boxes-stacked" href="/api/inventory">
+    Learn how to manage stock levels with the inventory API
+  </Card>
+  <Card title="Catalog Management" icon="layer-group" href="/configuration/catalogs">
+    Organize products with categories, colors, and sizes
+  </Card>
+</CardGroup>

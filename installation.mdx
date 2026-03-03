@@ -1,0 +1,397 @@
+---
+title: Installation guide
+description: Detailed installation and configuration instructions for MKing Admin
+---
+
+# Installation guide
+
+This guide provides comprehensive instructions for installing, configuring, and deploying MKing Admin.
+
+## Prerequisites
+
+### Required software
+
+Ensure you have the following installed before proceeding:
+
+<Steps>
+  <Step title="Node.js and npm">
+    **Node.js** version 16.x or higher is recommended.
+    
+    Verify your installation:
+    
+    ```bash
+    node --version
+    npm --version
+    ```
+    
+    Download from [nodejs.org](https://nodejs.org/) if needed.
+  </Step>
+  
+  <Step title="Git">
+    **Git** for version control and cloning the repository.
+    
+    ```bash
+    git --version
+    ```
+    
+    Download from [git-scm.com](https://git-scm.com/) if needed.
+  </Step>
+  
+  <Step title="Code editor">
+    A modern code editor like **Visual Studio Code** is recommended for TypeScript support and IntelliSense.
+  </Step>
+</Steps>
+
+### System requirements
+
+- **Operating System**: Windows 10+, macOS 10.15+, or Linux
+- **RAM**: Minimum 4GB (8GB recommended for development)
+- **Disk Space**: At least 500MB for dependencies and build artifacts
+
+## Installation steps
+
+### 1. Clone the repository
+
+Clone the MKing Admin repository to your local machine:
+
+```bash
+git clone <your-repository-url>
+cd mking
+```
+
+### 2. Install dependencies
+
+MKing Admin uses npm for package management. Install all dependencies:
+
+<CodeGroup>
+```bash npm
+npm install
+```
+
+```bash yarn
+yarn install
+```
+</CodeGroup>
+
+This will install the following key dependencies (from `package.json:12-58`):
+
+#### Core dependencies
+- `react@18.3.1` - React library
+- `react-dom@18.3.1` - React DOM rendering
+- `typescript@5.7.2` - TypeScript compiler
+- `vite@6.0.5` - Build tool and dev server
+
+#### UI framework
+- `@mui/material@5.18.0` - Material-UI components
+- `@mui/icons-material@5.18.0` - Material Design icons
+- `@emotion/react@11.13.5` - CSS-in-JS styling
+- `@emotion/styled@11.13.5` - Styled components
+
+#### State management
+- `@reduxjs/toolkit@2.3.0` - Redux state management
+- `react-redux@9.2.0` - React bindings for Redux
+- `redux-persist@6.0.0` - Persist Redux state
+- `zustand@5.0.8` - Lightweight state management
+
+#### Routing & forms
+- `react-router-dom@6.30.0` - Client-side routing
+- `react-hook-form@7.54.2` - Form handling
+- `yup@1.6.1` - Schema validation
+
+#### Data & visualization
+- `ag-grid-react@33.2.0` - Advanced data grids
+- `apexcharts@4.0.0` - Charts and graphs
+- `@fullcalendar/react@6.1.20` - Calendar component
+
+#### Utilities
+- `axios@1.7.9` - HTTP client
+- `jwt-decode@4.0.0` - JWT token decoding
+- `date-fns@2.30.0` - Date utilities
+- `lodash@4.17.21` - Utility functions
+
+<Note>
+The complete dependency list includes over 40 packages. Installation may take 2-5 minutes depending on your internet connection.
+</Note>
+
+### 3. Environment configuration
+
+Create a `.env` file in the project root:
+
+```bash
+cp .env.example .env
+```
+
+Configure the environment variables:
+
+```bash .env
+# Environment mode (develop, staging, production)
+VITE_APP_ENV=develop
+
+# API base URL
+VITE_BASE_URL=http://localhost:3008/api
+
+# Optional: Production URLs
+# VITE_GL_PRUEBAS=https://pruebas.garantia.mx
+# VITE_GL_PRODUCCION=https://app.garantia.mx
+```
+
+#### Environment variables explained
+
+| Variable | Description | Example |
+|----------|-------------|----------|
+| `VITE_APP_ENV` | Application environment | `develop`, `production` |
+| `VITE_BASE_URL` | Backend API base URL | `http://localhost:3008/api` |
+| `VITE_GL_PRUEBAS` | Testing environment URL | `https://pruebas.garantia.mx` |
+| `VITE_GL_PRODUCCION` | Production environment URL | `https://app.garantia.mx` |
+
+<Warning>
+Never commit your `.env` file to version control. It's already included in `.gitignore` by default.
+</Warning>
+
+### 4. TypeScript configuration
+
+MKing Admin uses TypeScript with strict type checking. The configuration is already set up in `tsconfig.json:2-18`:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "strict": true,
+    "esModuleInterop": false,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "noEmit": true
+  }
+}
+```
+
+Key TypeScript features enabled:
+- **Strict mode**: Enhanced type checking
+- **JSX**: React JSX transform
+- **ES Modules**: Modern module system
+
+### 5. Development server configuration
+
+The Vite development server is configured in `vite.config.ts` with the following settings:
+
+```typescript
+server: {
+  host: '0.0.0.0',      // Allow local network access
+  port: 5000,           // Development port
+  hmr: {
+    host: 'localhost',
+    overlay: true,      // Show errors as overlay
+    timeout: 30000
+  },
+  proxy: {
+    '/api': {
+      target: 'http://localhost:3333',
+      changeOrigin: true,
+      secure: false
+    }
+  },
+  watch: {
+    usePolling: true    // For Docker/VM environments
+  }
+}
+```
+
+<Note>
+The proxy configuration routes all `/api` requests to `http://localhost:3333`, allowing seamless communication with the backend API during development.
+</Note>
+
+## Running the application
+
+### Development mode
+
+Start the development server with hot module replacement:
+
+<CodeGroup>
+```bash npm
+npm run dev
+```
+
+```bash yarn
+yarn dev
+```
+</CodeGroup>
+
+The application will be available at:
+- Local: `http://localhost:5000`
+- Network: `http://<your-ip>:5000`
+
+### Type checking
+
+Run TypeScript type checking without emitting files:
+
+<CodeGroup>
+```bash npm
+npm run typecheck
+```
+
+```bash yarn
+yarn typecheck
+```
+</CodeGroup>
+
+### Production build
+
+Create an optimized production build:
+
+<CodeGroup>
+```bash npm
+npm run build
+```
+
+```bash yarn
+yarn build
+```
+</CodeGroup>
+
+The build output will be in the `dist/` directory.
+
+### Preview production build
+
+Preview the production build locally:
+
+<CodeGroup>
+```bash npm
+npm run preview
+```
+
+```bash yarn
+yarn preview
+```
+</CodeGroup>
+
+## Project structure
+
+After installation, your project structure will look like this:
+
+```
+mking/
+├── src/
+│   ├── Main.tsx              # Application entry point
+│   ├── auth/                 # Authentication module
+│   ├── core/                 # Core application wrapper
+│   ├── pages/                # Feature pages
+│   │   ├── Calendar/         # Calendar & scheduling
+│   │   ├── Employees/        # Employee management
+│   │   ├── Product/          # Product catalog
+│   │   ├── Quotations/       # Quotation generation
+│   │   ├── Users/            # User management
+│   │   ├── Roles/            # Role management
+│   │   ├── client/           # Client CRM
+│   │   └── catalogs/         # Various catalogs
+│   ├── router/               # Route definitions
+│   ├── services/             # API services
+│   ├── store/                # State management
+│   │   ├── authStore.ts      # Zustand auth store
+│   │   └── pageTitleStore.ts # Page title state
+│   ├── theme/                # MUI theme config
+│   ├── utils/                # Utility functions
+│   └── assets/               # Static assets
+├── index.html                # HTML entry point
+├── vite.config.ts            # Vite configuration
+├── tsconfig.json             # TypeScript config
+├── package.json              # Dependencies
+└── .env                      # Environment variables
+```
+
+## Authentication architecture
+
+MKing Admin uses Zustand for authentication state management (from `src/store/authStore.ts:11-33`):
+
+```typescript
+interface AuthState {
+  user: User | null;
+  permissions: string[];
+  isAuthenticated: boolean;
+  setAuth: (user: User, permissions: string[]) => void;
+  clearAuth: () => void;
+}
+```
+
+The authentication store manages:
+- User profile data
+- Permission-based access control
+- Authentication state across the application
+
+## Backend API setup
+
+<Warning>
+MKing Admin requires a backend API to function properly. Ensure your backend is running before starting the frontend application.
+</Warning>
+
+The application expects:
+1. Backend API running on `http://localhost:3333` (default)
+2. API endpoints available at `/api/*`
+3. JWT-based authentication
+
+If your backend runs on a different port, update:
+- `.env`: Change `VITE_BASE_URL`
+- `vite.config.ts`: Update proxy target in server configuration
+
+## Troubleshooting
+
+### Installation issues
+
+**Problem**: npm install fails with permission errors
+
+**Solution**: Try using sudo (Linux/Mac) or run as administrator (Windows), or fix npm permissions:
+
+```bash
+sudo chown -R $USER:$USER ~/.npm
+```
+
+### Build issues
+
+**Problem**: TypeScript compilation errors
+
+**Solution**: Ensure you're using TypeScript 5.7.2:
+
+```bash
+npm list typescript
+```
+
+**Problem**: Module resolution errors
+
+**Solution**: Clear cache and reinstall:
+
+```bash
+rm -rf node_modules package-lock.json
+npm install
+```
+
+### Runtime issues
+
+**Problem**: API requests failing
+
+**Solution**: 
+1. Verify backend is running on correct port
+2. Check CORS configuration on backend
+3. Verify `VITE_BASE_URL` in `.env`
+4. Check proxy configuration in `vite.config.ts`
+
+**Problem**: Authentication not persisting
+
+**Solution**: Check browser localStorage/sessionStorage. Redux Persist stores authentication state locally.
+
+## Next steps
+
+After successful installation:
+
+1. Review the application structure in `src/`
+2. Explore the authentication flow in `src/auth/`
+3. Understand state management in `src/store/`
+4. Customize the Material-UI theme in `src/theme/`
+5. Start building your features in `src/pages/`
+
+<Note>
+For testing, MKing Admin includes Vitest configuration. Run tests with `npm test` (testing setup is in `src/vitest.setup.ts`).
+</Note>

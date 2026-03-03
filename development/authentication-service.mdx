@@ -1,0 +1,432 @@
+---
+title: "Authentication Service"
+description: "JWT token authentication implementation with automatic header injection and session management"
+---
+
+## Overview
+
+The authentication system uses JWT (JSON Web Tokens) stored in localStorage with automatic header injection via Axios interceptors. All API requests are authenticated using Bearer tokens.
+
+## Authentication Flow
+
+### 1. Login Process
+
+```tsx
+export const LoginService = (body: any) => 
+  axios.post(`${apiUrl}/login`, body);
+```
+
+Source: `service.tsx:46`
+
+**Login Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+```
+
+**Expected Response:**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": 1,
+    "name": "John Doe",
+    "email": "user@example.com"
+  }
+}
+```
+
+### 2. Token Storage
+
+After successful login, the token must be stored in localStorage:
+
+```tsx
+const handleLogin = async (credentials) => {
+  try {
+    const { data } = await LoginService(credentials);
+    localStorage.setItem('token', data.token);
+    // Token is now automatically included in all requests
+  } catch (error) {
+    // Handle login error
+  }
+};
+```
+
+<Warning>
+The token is stored in localStorage, which persists across browser sessions. Never store sensitive data beyond the JWT token itself.
+</Warning>
+
+### 3. Automatic Token Injection
+
+The request interceptor automatically attaches the token to every request:
+
+```tsx
+axios.interceptors.request.use(
+  (config: any) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers["Authorization"] = "Bearer " + token;
+    }
+    return config;
+  },
+  function (error) {
+    console.log(error);
+    return Promise.reject(error);
+  }
+);
+```
+
+Source: `service.tsx:7-27`
+
+**How It Works:**
+1. Interceptor runs before every HTTP request
+2. Retrieves token from localStorage
+3. If token exists, adds `Authorization: Bearer <token>` header
+4. Request proceeds with authentication header
+
+<Info>
+No manual token handling needed in service functions - all requests are automatically authenticated.
+</Info>
+
+## User Information Retrieval
+
+Fetch authenticated user details:
+
+```tsx
+export const getInfoUser = () => axios.get(`${apiUrl}/user`);
+```
+
+Source: `service.tsx:134`
+
+**Usage Example:**
+```tsx
+const { data } = await getInfoUser();
+const currentUser = data.user;
+```
+
+This endpoint returns the currently authenticated user's information based on the JWT token.
+
+## Session Management
+
+### Token Expiration Handling
+
+The response interceptor handles expired or invalid tokens:
+
+```tsx
+axios.interceptors.response.use(
+  (res: any) => {
+    return res;
+  },
+  (err) => {
+    const status = err.response.status;
+    Response(status);
+    return Promise.reject(err);
+  }
+);
+```
+
+Source: `service.tsx:35-44`
+
+When a 401 Unauthorized response is received, the `Response` utility handles it:
+
+```tsx
+case 401:
+  toast.error("Sesión expirada o no autorizada", { theme: "colored" });
+  localStorage.removeItem("token");
+  setTimeout(() => window.location.href = "/login", 1500);
+  break;
+```
+
+Source: `utils/response.tsx:36-40`
+
+**Session Expiration Flow:**
+1. API returns 401 status
+2. Response interceptor catches error
+3. Toast notification shown to user
+4. Token removed from localStorage
+5. Automatic redirect to `/login` after 1.5 seconds
+
+<Note>
+The 1500ms delay allows users to read the error message before being redirected.
+</Note>
+
+### Logout Implementation
+
+To implement logout, simply clear the token:
+
+```tsx
+const handleLogout = () => {
+  localStorage.removeItem('token');
+  window.location.href = '/login';
+};
+```
+
+No server-side logout endpoint is needed for JWT-based authentication (tokens are stateless).
+
+## Error Handling
+
+The `Response` utility provides comprehensive error handling:
+
+```tsx
+export const Response = (code: number, data?: any) => {
+  const validationErrors = data?.errors || data?.messages?.errors;
+  if (Array.isArray(validationErrors)) {
+    validationErrors.forEach((err: any) => {
+      toast.error(err.message || `Error en ${err.field}`, {
+        autoClose: 5000,
+        position: "top-right"
+      });
+    });
+    return;
+  }
+
+  const msg = typeof data === 'string' ? data : (data?.message || null);
+
+  switch (code) {
+    case 0:
+      toast.error("Error de red / Servidor inalcanzable");
+      break;
+    case 401:
+      toast.error("Sesión expirada o no autorizada", { theme: "colored" });
+      localStorage.removeItem("token");
+      setTimeout(() => window.location.href = "/login", 1500);
+      break;
+    case 403:
+      toast.error(msg || "No tienes permisos para realizar esta acción");
+      break;
+    // ... other status codes
+  }
+};
+```
+
+Source: `utils/response.tsx:4-63`
+
+### Authentication Error Codes
+
+| Status | Meaning | Action |
+|--------|---------|--------|
+| 0 | Network error / Server unreachable | Show error toast |
+| 401 | Unauthorized / Token expired | Clear token, redirect to login |
+| 403 | Forbidden / Insufficient permissions | Show permission error |
+| 422 | Validation error | Display field-specific errors |
+
+### Validation Error Handling
+
+The Response utility handles validation errors specially:
+
+```tsx
+const validationErrors = data?.errors || data?.messages?.errors;
+if (Array.isArray(validationErrors)) {
+  validationErrors.forEach((err: any) => {
+    toast.error(err.message || `Error en ${err.field}`, {
+      autoClose: 5000,
+      position: "top-right"
+    });
+  });
+  return;
+}
+```
+
+Source: `utils/response.tsx:9-20`
+
+**Expected validation error format:**
+```json
+{
+  "errors": [
+    {
+      "field": "email",
+      "message": "Email is required",
+      "rule": "required"
+    },
+    {
+      "field": "password",
+      "message": "Password must be at least 8 characters",
+      "rule": "min"
+    }
+  ]
+}
+```
+
+Each validation error is displayed as a separate toast notification.
+
+<Info>
+Validation errors automatically display for 5 seconds with field-specific messages.
+</Info>
+
+## Security Considerations
+
+### Token Storage
+
+**Current Implementation:**
+- Tokens stored in localStorage
+- Persists across browser sessions
+- Accessible to JavaScript on the same domain
+
+<Warning>
+LocalStorage is vulnerable to XSS attacks. Ensure your application properly sanitizes user input and implements Content Security Policy (CSP).
+</Warning>
+
+**Alternative Approaches:**
+- **httpOnly Cookies** - More secure but requires CORS configuration
+- **sessionStorage** - Cleared when browser tab closes
+- **Memory only** - Lost on page refresh
+
+### CORS Configuration
+
+Admin and e-commerce services include CORS headers:
+
+```tsx
+config.headers["Access-Control-Allow-Origin"] = "*";
+config.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE";
+config.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization";
+```
+
+Source: `admin.service.tsx:11-13`
+
+<Warning>
+The wildcard origin (`*`) allows requests from any domain. In production, restrict this to your specific domain.
+</Warning>
+
+### Request Security
+
+All authenticated requests include:
+- Authorization header with Bearer token
+- Content-Type header (application/json or multipart/form-data)
+- CORS headers for cross-origin requests
+
+## Implementation Examples
+
+### Login Component
+
+```tsx
+import { LoginService } from '@/services';
+import { useState } from 'react';
+
+const LoginPage = () => {
+  const [credentials, setCredentials] = useState({ email: '', password: '' });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const { data } = await LoginService(credentials);
+      localStorage.setItem('token', data.token);
+      window.location.href = '/dashboard';
+    } catch (error) {
+      // Error handled by response interceptor
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        type="email"
+        value={credentials.email}
+        onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
+      />
+      <input
+        type="password"
+        value={credentials.password}
+        onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
+      />
+      <button type="submit">Login</button>
+    </form>
+  );
+};
+```
+
+### Protected Route
+
+```tsx
+import { useEffect, useState } from 'react';
+import { getInfoUser } from '@/services';
+
+const ProtectedPage = () => {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const { data } = await getInfoUser();
+        setUser(data.user);
+      } catch (error) {
+        // 401 will auto-redirect to login
+      }
+    };
+    fetchUser();
+  }, []);
+
+  if (!user) return <div>Loading...</div>;
+
+  return <div>Welcome, {user.name}!</div>;
+};
+```
+
+### Permission-Based Access
+
+```tsx
+import { getRoles } from '@/services';
+
+const checkPermission = async (requiredPermission: string) => {
+  try {
+    const { data } = await getInfoUser();
+    const userRole = data.user.role;
+    
+    const { data: rolesData } = await getRoles();
+    const role = rolesData.roles.find(r => r.id === userRole.id);
+    
+    return role.permissions.includes(requiredPermission);
+  } catch (error) {
+    return false;
+  }
+};
+```
+
+## Troubleshooting
+
+### Token Not Being Sent
+
+**Symptoms:** API returns 401 even after login
+
+**Checklist:**
+1. Verify token exists in localStorage: `localStorage.getItem('token')`
+2. Check browser network tab for Authorization header
+3. Ensure token is valid JWT format
+4. Verify API endpoint accepts Bearer tokens
+
+### Infinite Redirect Loop
+
+**Symptoms:** Continuously redirected to login page
+
+**Possible Causes:**
+- Login endpoint itself requires authentication
+- Token is malformed or corrupted
+- Server always returns 401
+
+**Solution:**
+```tsx
+// Exclude login endpoint from auth requirements
+if (config.url?.includes('/login')) {
+  return config; // Don't add token to login requests
+}
+```
+
+### CORS Errors
+
+**Symptoms:** Browser blocks requests with CORS error
+
+**Solution:**
+- Ensure server includes proper CORS headers
+- Verify `Access-Control-Allow-Headers` includes "Authorization"
+- Check that API accepts preflight OPTIONS requests
+
+<Note>
+CORS headers set in the client-side code do not affect actual CORS behavior - these must be configured on the server.
+</Note>
+
+## Next Steps
+
+- Review [API Service Layer](/development/api-services) for service architecture
+- Implement role-based access control using the Roles & Permissions services
+- Set up refresh token rotation for enhanced security

@@ -1,0 +1,742 @@
+---
+title: Quotation Generation
+description: Create customized quotations with product selection, personalization, embroidery logos, and additional charges
+---
+
+Generate professional quotations for clients with support for product customization, embroidery, and flexible pricing.
+
+## Overview
+
+The quotation system provides:
+
+- **Client Selection** - Choose from existing clients or enter a name manually
+- **Product Selection** - Add products from your catalog with visual search
+- **Inline Editing** - Edit quantities, prices, and custom names directly in the grid
+- **Product Personalization** - Add custom names for each piece and embroidery logos
+- **Additional Charges** - Include extra fees for embroidery, design work, etc.
+- **PDF Generation** - Download quotations as professional PDFs
+- **Multi-image Support** - Product images displayed in quotation
+
+## Creating a Quotation
+
+<Steps>
+  <Step title="Select or enter client">
+    Choose an existing client from the autocomplete dropdown or manually enter a client name.
+  </Step>
+  
+  <Step title="Add products">
+    Search and add products to the quotation. The autocomplete shows product images, names, and SKUs.
+  </Step>
+  
+  <Step title="Customize products">
+    Edit quantities, prices, and add custom names or embroidery logos for personalization.
+  </Step>
+  
+  <Step title="Add additional charges">
+    Include any extra fees such as embroidery costs, design work, or rush fees.
+  </Step>
+  
+  <Step title="Save quotation">
+    Submit the quotation which generates a unique UUID and creates a downloadable PDF.
+  </Step>
+</Steps>
+
+## Quotation Creation Page
+
+The create quotation page (`src/pages/Quotations/CreateAdminQuotation.tsx:17`) provides a comprehensive interface:
+
+### Client Selection
+
+Dual-mode client selector with autocomplete (`src/pages/Quotations/CreateAdminQuotation.tsx:339-397`):
+
+```tsx
+{/* Autocomplete for existing clients */}
+<Autocomplete
+  options={allClients}
+  getOptionLabel={(option) => `${option.name} - ${option.email || 'Sin email'}`}
+  value={selectedClient}
+  onChange={(_, newValue) => {
+    setSelectedClient(newValue);
+    if (newValue) setClientName(''); // Clear manual input
+  }}
+  renderInput={(params) => (
+    <TextField {...params} label="Seleccionar Cliente" variant="outlined" />
+  )}
+  renderOption={(props, option) => {
+    const details = option.client_details || option.clientDetails;
+    const imageUrl = details?.[0]?.img_client;
+    
+    return (
+      <li {...props} key={option.id}>
+        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={option.name}
+              style={{
+                width: 40,
+                height: 40,
+                objectFit: 'cover',
+                borderRadius: '50%',
+                marginRight: 16
+              }}
+            />
+          ) : (
+            <AccountCircleIcon color="disabled" fontSize="small" />
+          )}
+          <Box>
+            <Typography variant="body1">{option.name}</Typography>
+            <Typography variant="caption" color="textSecondary">
+              {option.email || 'Sin email'}
+            </Typography>
+          </Box>
+        </Box>
+      </li>
+    );
+  }}
+/>
+
+{/* Manual name input */}
+<TextField
+  fullWidth
+  label="O ingresar nombre manualmente"
+  value={clientName}
+  onChange={(e) => {
+    setClientName(e.target.value);
+    if (e.target.value) setSelectedClient(null); // Clear autocomplete
+  }}
+  disabled={!!selectedClient}
+  helperText={
+    selectedClient 
+      ? "Cliente seleccionado. Limpia el selector para ingresar manualmente." 
+      : ""
+  }
+/>
+```
+
+### Product Search and Addition
+
+Visual product search with autocomplete (`src/pages/Quotations/CreateAdminQuotation.tsx:399-436`):
+
+```tsx
+<Autocomplete
+  options={allProducts}
+  getOptionLabel={(option) => `${option.sku} - ${option.name}`}
+  value={autoValue}
+  onChange={(_, newValue) => handleAddProduct(newValue)}
+  renderInput={(params) => (
+    <TextField {...params} label="Buscar y Agregar Producto" variant="outlined" />
+  )}
+  renderOption={(props, option) => {
+    // Find primary image or use first image
+    const images = option.images;
+    let imageToShow = images?.find(img => img.is_primary);
+    if (!imageToShow && images?.length > 0) imageToShow = images[0];
+    
+    return (
+      <li {...props} key={option.id}>
+        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+          {imageToShow ? (
+            <img
+              src={imageToShow.url}
+              alt={option.name}
+              style={{
+                width: 40,
+                height: 40,
+                objectFit: 'cover',
+                borderRadius: 4,
+                marginRight: 16
+              }}
+            />
+          ) : (
+            <ImageIcon color="disabled" fontSize="small" />
+          )}
+          <Box>
+            <Typography variant="body1">{option.name}</Typography>
+            <Typography variant="caption" color="textSecondary">
+              {option.sku} - Stock: {option.stock}
+            </Typography>
+          </Box>
+        </Box>
+      </li>
+    );
+  }}
+/>
+```
+
+### Product Addition Logic
+
+Add products with initial values (`src/pages/Quotations/CreateAdminQuotation.tsx:64-86`):
+
+```tsx
+const handleAddProduct = (product) => {
+  if (!product) return;
+  
+  // Check if product already exists
+  const exists = selectedItems.find(item => item.id === product.id);
+  if (exists) {
+    Swal.fire('Atención', 'El producto ya está en la lista', 'warning');
+    return;
+  }
+  
+  // Create new item with defaults
+  const newItem = {
+    ...product,
+    productId: product.id,
+    quantity: 1,
+    price: Number(product.price || 0),
+    subtotal: Number(product.price || 0),
+    customName: '',
+    embroideryImage: null,
+    embroideryImageFile: null
+  };
+  
+  setSelectedItems([...selectedItems, newItem]);
+  setAutoValue(null); // Reset autocomplete
+};
+```
+
+## Product Grid with Inline Editing
+
+Editable grid for quotation items (`src/pages/Quotations/CreateAdminQuotation.tsx:219-325`):
+
+```tsx
+const columnDefs = [
+  {
+    headerName: "Imagen",
+    field: "images",
+    width: 100,
+    cellRenderer: (params) => {
+      const images = params.value;
+      let imageToShow = images?.find(img => img.is_primary) || images?.[0];
+      
+      if (!imageToShow?.url) {
+        return <div style={{ color: '#ccc' }}>Sin imagen</div>;
+      }
+      
+      return (
+        <img
+          src={imageToShow.url}
+          alt="Producto"
+          style={{
+            maxWidth: '70px',
+            maxHeight: '70px',
+            objectFit: 'cover',
+            borderRadius: '4px'
+          }}
+        />
+      );
+    }
+  },
+  {
+    headerName: "Producto",
+    field: "name",
+    flex: 2
+  },
+  {
+    headerName: "SKU",
+    field: "sku",
+    width: 120
+  },
+  {
+    headerName: "Precio U.",
+    field: "price",
+    editable: true,
+    singleClickEdit: true,
+    type: 'numericColumn',
+    valueFormatter: (p) => `$ ${Number(p.value).toFixed(2)}`,
+    cellStyle: { backgroundColor: '#e3f2fd', border: '1px solid #90caf9' },
+    width: 120
+  },
+  {
+    headerName: "Cantidad",
+    field: "quantity",
+    editable: true,
+    singleClickEdit: true,
+    type: 'numericColumn',
+    cellStyle: { backgroundColor: '#e3f2fd', border: '1px solid #90caf9' },
+    width: 100
+  },
+  {
+    headerName: "Nombre",
+    field: "customName",
+    editable: true,
+    singleClickEdit: true,
+    cellStyle: (params) => {
+      const hasName = params.value?.trim();
+      return hasName
+        ? { backgroundColor: '#e8f5e9', border: '1px solid #66bb6a' }
+        : {};
+    },
+    width: 180,
+    cellRenderer: (p) => {
+      return p.value || (
+        <span style={{ color: '#aaa', fontStyle: 'italic' }}>Sin nombre</span>
+      );
+    }
+  },
+  {
+    headerName: "Bordado",
+    field: "embroideryImageFile",
+    width: 120,
+    cellRenderer: (params) => {
+      const hasImage = !!params.value;
+      return (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ImageIcon color={hasImage ? "success" : "disabled"} />
+          <IconButton size="small" onClick={() => handleOpenCustomize(params.data)}>
+            <EditIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      );
+    }
+  },
+  {
+    headerName: "Subtotal",
+    field: "subtotal",
+    valueFormatter: (p) => `$ ${Number(p.value).toFixed(2)}`,
+    width: 120
+  },
+  {
+    headerName: "",
+    field: "id",
+    width: 80,
+    cellRenderer: (params) => (
+      <IconButton onClick={() => handleDelete(params.value)} size="small">
+        <DeleteIcon color="error" />
+      </IconButton>
+    )
+  }
+];
+```
+
+### Inline Editing Handler
+
+Update item values and recalculate subtotals (`src/pages/Quotations/CreateAdminQuotation.tsx:88-112`):
+
+```tsx
+const handleCellValueChanged = (params) => {
+  const { data, colDef, newValue } = params;
+  
+  if (colDef.field === 'quantity' || colDef.field === 'price' || colDef.field === 'customName') {
+    const updatedItems = selectedItems.map(item => {
+      if (item.id === data.id) {
+        const price = colDef.field === 'price' ? Number(newValue) : Number(item.price);
+        const quantity = colDef.field === 'quantity' ? Number(newValue) : Number(item.quantity);
+        const customName = colDef.field === 'customName' ? newValue : item.customName;
+        
+        return {
+          ...item,
+          quantity,
+          price,
+          customName,
+          subtotal: price * quantity // Recalculate subtotal
+        };
+      }
+      return item;
+    });
+    
+    setSelectedItems(updatedItems);
+    params.api.setRowData(updatedItems);
+  }
+};
+```
+
+## Product Customization Dialog
+
+Modal for adding custom names and embroidery logos (`src/pages/Quotations/CreateAdminQuotation.tsx:520-600`):
+
+### Customization Features
+
+<Tabs>
+  <Tab title="Custom Names">
+    Add individual names for each piece in the order. Includes a "Same name for all" shortcut button.
+  </Tab>
+  <Tab title="Embroidery Logo">
+    Upload an image file to be used as an embroidery logo for all pieces.
+  </Tab>
+</Tabs>
+
+### Implementation
+
+```tsx
+const handleOpenCustomize = (item) => {
+  setCurrentEditingItem(item);
+  
+  // Parse existing custom names
+  const existingNames = item.customName 
+    ? item.customName.split(',').map(s => s.trim()) 
+    : [];
+  
+  // Create array with quantity length
+  const namesArray = Array.from(
+    { length: item.quantity }, 
+    (_, i) => existingNames[i] || ''
+  );
+  
+  setTempCustomNames(namesArray);
+  setTempEmbroideryImage(item.embroideryImageFile || null);
+  setOpenCustomizeDialog(true);
+};
+
+<Dialog open={openCustomizeDialog} onClose={() => setOpenCustomizeDialog(false)}>
+  <DialogTitle>Personalizar Producto</DialogTitle>
+  <DialogContent>
+    {/* Custom Names Section */}
+    <Box sx={{ maxHeight: '350px', overflowY: 'auto' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+          Nombres para cada pieza ({currentEditingItem?.quantity || 0})
+        </Typography>
+        
+        {/* Copy first name to all */}
+        {tempCustomNames.length > 1 && (
+          <Button
+            size="small"
+            onClick={() => {
+              const firstName = tempCustomNames[0];
+              setTempCustomNames(tempCustomNames.map(() => firstName));
+            }}
+          >
+            Mismo nombre para todos
+          </Button>
+        )}
+      </Box>
+      
+      {/* Individual name fields */}
+      {tempCustomNames.map((name, index) => (
+        <TextField
+          key={index}
+          fullWidth
+          label={`Nombre pieza ${index + 1}`}
+          value={name}
+          onChange={(e) => {
+            const newNames = [...tempCustomNames];
+            newNames[index] = e.target.value;
+            setTempCustomNames(newNames);
+          }}
+          size="small"
+          sx={{ mb: 1.5 }}
+        />
+      ))}
+    </Box>
+    
+    {/* Embroidery Image Section */}
+    <Box sx={{ mt: 3 }}>
+      <Typography variant="subtitle2" gutterBottom>
+        Logo para bordar (opcional)
+      </Typography>
+      <Button
+        variant="outlined"
+        component="label"
+        startIcon={<ImageIcon />}
+        fullWidth
+      >
+        {tempEmbroideryImage ? tempEmbroideryImage.name : 'Seleccionar imagen'}
+        <input
+          type="file"
+          hidden
+          accept="image/*"
+          onChange={(e) => {
+            if (e.target.files?.[0]) {
+              setTempEmbroideryImage(e.target.files[0]);
+            }
+          }}
+        />
+      </Button>
+      
+      {/* Image preview */}
+      {tempEmbroideryImage && (
+        <Box sx={{ mt: 2 }}>
+          <img
+            src={URL.createObjectURL(tempEmbroideryImage)}
+            alt="Preview"
+            style={{ maxWidth: '100%', maxHeight: '200px', objectFit: 'contain' }}
+          />
+        </Box>
+      )}
+    </Box>
+  </DialogContent>
+  
+  <DialogActions>
+    <Button onClick={() => setOpenCustomizeDialog(false)}>Cancelar</Button>
+    <Button onClick={handleSaveCustomization} variant="contained">
+      Guardar
+    </Button>
+  </DialogActions>
+</Dialog>
+```
+
+### Save Customization
+
+```tsx
+const handleSaveCustomization = () => {
+  if (currentEditingItem) {
+    // Join names with comma
+    const joinedNames = tempCustomNames.map(n => n.trim()).join(', ');
+    
+    const updatedItems = selectedItems.map(item => {
+      if (item.id === currentEditingItem.id) {
+        return {
+          ...item,
+          customName: joinedNames,
+          embroideryImageFile: tempEmbroideryImage,
+          embroideryImage: tempEmbroideryImage 
+            ? URL.createObjectURL(tempEmbroideryImage) 
+            : item.embroideryImage
+        };
+      }
+      return item;
+    });
+    
+    setSelectedItems(updatedItems);
+  }
+  
+  setOpenCustomizeDialog(false);
+};
+```
+
+## Additional Charges
+
+Add extra fees for embroidery, design work, rush orders, etc. (`src/pages/Quotations/CreateAdminQuotation.tsx:455-497`):
+
+```tsx
+{/* Add Charge Form */}
+<Grid container spacing={2} alignItems="center">
+  <Grid item xs={12} sm={6}>
+    <TextField
+      label="Descripción del cargo"
+      value={chargeDescription}
+      onChange={(e) => setChargeDescription(e.target.value)}
+      fullWidth
+      size="small"
+    />
+  </Grid>
+  <Grid item xs={12} sm={3}>
+    <TextField
+      label="Monto"
+      type="number"
+      value={chargeAmount}
+      onChange={(e) => setChargeAmount(e.target.value)}
+      fullWidth
+      size="small"
+    />
+  </Grid>
+  <Grid item xs={12} sm={3}>
+    <Button variant="outlined" onClick={handleAddCharge}>
+      Agregar Cargo
+    </Button>
+  </Grid>
+</Grid>
+
+{/* List of Additional Charges */}
+{additionalCharges.length > 0 && (
+  <Box sx={{ mt: 2 }}>
+    {additionalCharges.map(charge => (
+      <Box
+        key={charge.id}
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          p: 1,
+          borderBottom: '1px solid #eee'
+        }}
+      >
+        <Typography variant="body2">{charge.description}</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Typography variant="body2" fontWeight="bold">
+            $ {charge.amount.toFixed(2)}
+          </Typography>
+          <IconButton
+            size="small"
+            color="error"
+            onClick={() => handleDeleteCharge(charge.id)}
+          >
+            <DeleteIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      </Box>
+    ))}
+  </Box>
+)}
+```
+
+### Add Charge Handler
+
+```tsx
+const handleAddCharge = () => {
+  if (!chargeDescription.trim() || !chargeAmount) {
+    Swal.fire('Error', 'Descripción y monto requeridos', 'error');
+    return;
+  }
+  
+  const newCharge = {
+    id: Date.now(),
+    description: chargeDescription,
+    amount: parseFloat(chargeAmount)
+  };
+  
+  setAdditionalCharges([...additionalCharges, newCharge]);
+  setChargeDescription('');
+  setChargeAmount('');
+};
+```
+
+## Total Calculation
+
+Calculate product subtotal, additional charges, and global total (`src/pages/Quotations/CreateAdminQuotation.tsx:215-217`):
+
+```tsx
+const productsTotal = selectedItems.reduce(
+  (acc, item) => acc + (item.subtotal || 0), 
+  0
+);
+
+const chargesTotal = additionalCharges.reduce(
+  (acc, item) => acc + (item.amount || 0), 
+  0
+);
+
+const total = productsTotal + chargesTotal;
+```
+
+### Total Display
+
+```tsx
+<Box sx={{ textAlign: 'right', mr: 2 }}>
+  <Typography variant="body2" color="text.secondary">
+    Subtotal Productos: $ {productsTotal.toFixed(2)}
+  </Typography>
+  
+  {chargesTotal > 0 && (
+    <Typography variant="body2" color="text.secondary">
+      Cargos Extra: $ {chargesTotal.toFixed(2)}
+    </Typography>
+  )}
+  
+  <Typography variant="h5" fontWeight="bold">
+    Total Global: $ {total.toFixed(2)}
+  </Typography>
+</Box>
+```
+
+## Saving the Quotation
+
+Submit quotation with products, customizations, and charges (`src/pages/Quotations/CreateAdminQuotation.tsx:172-213`):
+
+```tsx
+const handleSave = async () => {
+  // Validation
+  if (!selectedClient && !clientName.trim()) {
+    Swal.fire('Error', 'Debes seleccionar un cliente o ingresar un nombre', 'error');
+    return;
+  }
+  if (selectedItems.length === 0) {
+    Swal.fire('Error', 'Debes agregar al menos un producto', 'error');
+    return;
+  }
+  
+  try {
+    const formData = new FormData();
+    
+    // Client data
+    formData.append('clientId', selectedClient?.id || '');
+    formData.append('clientName', selectedClient ? selectedClient.name : clientName);
+    
+    // Prepare products data
+    const productsData = selectedItems.map((item, index) => {
+      // Add embroidery image file if exists
+      if (item.embroideryImageFile) {
+        formData.append(`embroideryImage_${index}`, item.embroideryImageFile);
+      }
+      
+      return {
+        productId: item.productId,
+        quantity: item.quantity,
+        price: item.price,
+        customName: item.customName || null
+      };
+    });
+    
+    formData.append('products', JSON.stringify(productsData));
+    formData.append('additionalCharges', JSON.stringify(additionalCharges));
+    
+    // Submit
+    await createAdminQuotation(formData);
+    Swal.fire('Éxito', 'Cotización creada correctamente', 'success');
+    navigate('/quotations');
+  } catch (error) {
+    console.error(error);
+    Swal.fire('Error', 'No se pudo crear la cotización', 'error');
+  }
+};
+```
+
+## API Service Methods
+
+Quotation API endpoints (`src/services/admin.service.tsx:88-98`):
+
+```tsx
+// Get all quotations
+export const getAdminQuotations = async () => 
+  await axios.get(`${apiUrl}/quotation_admin`);
+
+// Get single quotation
+export const getAdminQuotation = async (id) => 
+  await axios.get(`${apiUrl}/quotation_admin/${id}`);
+
+// Create quotation
+export const createAdminQuotation = async (body) => 
+  await axios.post(`${apiUrl}/quotation_admin`, body, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+
+// Download PDF
+export const downloadAdminQuotationPdf = async (uuid) => {
+  return await axios.get(`${apiUrl}/quotation_admin/${uuid}/pdf`, {
+    responseType: 'blob'
+  });
+};
+```
+
+## Best Practices
+
+<Note>
+  Use the "Same name for all" button when personalizing multiple pieces with the same name to save time.
+</Note>
+
+<Warning>
+  Embroidery image files should be high-resolution for best printing quality. Support common formats: JPG, PNG, SVG.
+</Warning>
+
+<Info>
+  The quotation grid highlights editable cells in blue and cells with custom names in green for better visibility.
+</Info>
+
+## User Experience Features
+
+### Visual Feedback
+
+- **Blue cells** - Editable fields (price, quantity)
+- **Green cells** - Fields with custom names
+- **Product images** - Visual confirmation of products
+- **Success/error toasts** - Real-time feedback
+- **Loading indicators** - During save operations
+
+### Keyboard Shortcuts
+
+- **Single click** - Edit quantity, price, or custom name
+- **Enter/Tab** - Move to next editable cell
+- **Escape** - Cancel edit
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Client Management" icon="users" href="/features/clients">
+    Manage your client database
+  </Card>
+  <Card title="Products" icon="box" href="/features/products">
+    Configure your product catalog
+  </Card>
+</CardGroup>

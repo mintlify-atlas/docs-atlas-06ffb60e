@@ -1,0 +1,710 @@
+---
+title: Employee Management
+description: Comprehensive employee management with personal data, labor information, payroll details, and birthday tracking
+---
+
+Manage your team with complete employee profiles including personal information, labor contracts, payroll data, and more.
+
+## Overview
+
+The employee management system provides:
+
+- **Complete Employee Profiles** - Personal data, contact information, and emergency contacts
+- **Labor Information** - Job title, department, salary, hire date, and education level
+- **Payroll Integration** - Bank account details and social security numbers
+- **Document Management** - RFC, CURP, and other Mexican identification
+- **Address Tracking** - Complete address details
+- **Profile Images** - Upload and display employee photos
+- **Birthday Calendar Integration** - Automatic birthday reminders in calendar
+
+## Employee List View
+
+The main employee page (`src/pages/Employees/EmployeesPage.tsx:14`) displays all employees in a data grid:
+
+### Grid Configuration
+
+```tsx
+const columnDefs = [
+  { headerName: "ID", field: "id", width: 70 },
+  {
+    headerName: "Foto",
+    field: "employee_img",
+    width: 80,
+    cellRenderer: (params) => {
+      let imgPath;
+      
+      if (params.value) {
+        if (params.value.startsWith('http')) {
+          imgPath = params.value;
+        } else if (params.value.includes('/')) {
+          // S3 Path
+          imgPath = `https://sysmking.s3.us-east-1.amazonaws.com/${params.value}`;
+        } else {
+          // Local Path (Legacy)
+          imgPath = `${import.meta.env.VITE_API_URL}/uploads/employees/${params.value}`;
+        }
+      }
+      
+      return (
+        <Avatar 
+          src={imgPath} 
+          alt="Emp" 
+          sx={{ width: 30, height: 30, cursor: 'pointer' }}
+          onClick={() => handleEdit(params.data.id)}
+        />
+      );
+    }
+  },
+  {
+    headerName: "Nombre",
+    field: "user.name",
+    flex: 1,
+    valueGetter: (params) => {
+      return `${params.data.user?.name || ''} ${params.data.user?.lastName || ''}`;
+    },
+    cellRenderer: (params) => (
+      <Box
+        onClick={() => handleEdit(params.data.id)}
+        sx={{
+          cursor: 'pointer',
+          color: 'primary.main',
+          '&:hover': {
+            textDecoration: 'underline'
+          }
+        }}
+      >
+        {params.value}
+      </Box>
+    )
+  },
+  { headerName: "Email", field: "user.email", flex: 1 },
+  { headerName: "Puesto", field: "employeeLabor.job_title", flex: 1 },
+  { headerName: "Departamento", field: "employeeLabor.department", flex: 1 },
+  { headerName: "Teléfono", field: "phone", width: 120 },
+  {
+    headerName: "Acciones",
+    cellRenderer: (params) => (
+      <Box>
+        <IconButton size="small" color="primary" onClick={() => handleEdit(params.data.id)}>
+          <EditIcon />
+        </IconButton>
+        <IconButton size="small" color="error" onClick={() => handleDelete(params.value)}>
+          <DeleteIcon />
+        </IconButton>
+      </Box>
+    )
+  }
+];
+```
+
+### Loading Employees
+
+```tsx
+const loadEmployees = async () => {
+  try {
+    const res = await getEmployees();
+    setEmployees(res.data);
+  } catch (error) {
+    Swal.fire('Error', 'No se pudieron cargar los empleados', 'error');
+  }
+};
+
+useEffect(() => {
+  setTitle("Gestión de Empleados");
+  loadEmployees();
+}, []);
+```
+
+## Employee Form Dialog
+
+The employee form (`src/pages/Employees/components/EmployeeFormDialog.tsx:97`) uses a tabbed interface for organized data entry:
+
+### Tab Structure
+
+<Tabs>
+  <Tab title="General">
+    User access credentials, personal data, emergency contact, and profile photo
+  </Tab>
+  <Tab title="Address">
+    Complete address information including street, city, state, and postal code
+  </Tab>
+  <Tab title="Labor">
+    Job information, salary, payroll details, and social security
+  </Tab>
+</Tabs>
+
+### Tab 1: General Information
+
+The general tab includes user credentials and personal data (`src/pages/Employees/components/EmployeeFormDialog.tsx:465-662`):
+
+#### User Access Section
+
+```tsx
+<Typography variant="h6" gutterBottom>Datos de Usuario (Acceso)</Typography>
+
+<TextField
+  label="Nombre *"
+  fullWidth
+  value={formData.user.name}
+  onChange={(e) => handleChange('user', 'name', e.target.value)}
+  error={!!errors.user.name}
+  helperText={errors.user.name}
+/>
+
+<TextField
+  label="Apellidos *"
+  fullWidth
+  value={formData.user.last_name}
+  onChange={(e) => handleChange('user', 'last_name', e.target.value)}
+  error={!!errors.user.last_name}
+  helperText={errors.user.last_name}
+/>
+
+<TextField
+  label="Email *"
+  fullWidth
+  type="email"
+  value={formData.user.email}
+  onChange={(e) => handleChange('user', 'email', e.target.value)}
+  error={!!errors.user.email}
+  helperText={errors.user.email}
+/>
+
+<TextField
+  label={employeeIdToEdit ? "Contraseña (dejar en blanco para no cambiar)" : "Contraseña *"}
+  fullWidth
+  type={showPassword ? 'text' : 'password'}
+  value={formData.user.password}
+  onChange={(e) => handleChange('user', 'password', e.target.value)}
+  error={!!errors.user.password}
+  helperText={errors.user.password}
+  InputProps={{
+    endAdornment: (
+      <InputAdornment position="end">
+        <IconButton onClick={() => setShowPassword(!showPassword)}>
+          {showPassword ? <VisibilityOff /> : <Visibility />}
+        </IconButton>
+      </InputAdornment>
+    ),
+  }}
+/>
+```
+
+#### Personal Data Section
+
+```tsx
+<Typography variant="h6" gutterBottom>Datos Personales</Typography>
+
+{/* Phone - 10 digits numeric validation */}
+<TextField
+  label="Teléfono"
+  fullWidth
+  value={formData.employee.phone}
+  onChange={(e) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+    handleChange('employee', 'phone', value);
+  }}
+  error={!!errors.employee.phone}
+  helperText={errors.employee.phone || '10 dígitos'}
+  inputProps={{ maxLength: 10 }}
+/>
+
+{/* Birth Date */}
+<DatePicker
+  label="Fecha Nacimiento *"
+  value={formData.employee.birth_date}
+  onChange={(newValue) => handleChange('employee', 'birth_date', newValue)}
+  format="dd/MM/yyyy"
+  slotProps={{
+    textField: {
+      fullWidth: true,
+      error: !!errors.employee.birth_date,
+      helperText: errors.employee.birth_date
+    }
+  }}
+/>
+
+{/* Gender */}
+<TextField
+  select
+  label="Género *"
+  fullWidth
+  value={formData.employee.gender}
+  onChange={(e) => handleChange('employee', 'gender', e.target.value)}
+>
+  <MenuItem value="m">Masculino</MenuItem>
+  <MenuItem value="f">Femenino</MenuItem>
+</TextField>
+
+{/* RFC - Mexican tax ID */}
+<TextField
+  label="RFC"
+  fullWidth
+  value={formData.employee.rfc}
+  onChange={(e) => handleChange('employee', 'rfc', e.target.value.toUpperCase())}
+  error={!!errors.employee.rfc}
+  helperText={errors.employee.rfc || 'Ej: ABCD123456XYZ'}
+  inputProps={{ maxLength: 13 }}
+/>
+
+{/* CURP - Mexican unique population registry */}
+<TextField
+  label="CURP"
+  fullWidth
+  value={formData.employee.curp}
+  onChange={(e) => handleChange('employee', 'curp', e.target.value.toUpperCase())}
+  error={!!errors.employee.curp}
+  helperText={errors.employee.curp || '18 caracteres'}
+  inputProps={{ maxLength: 18 }}
+/>
+
+{/* Civil Status */}
+<TextField
+  select
+  label="Estado Civil *"
+  fullWidth
+  value={formData.employee.civil_status}
+  onChange={(e) => handleChange('employee', 'civil_status', e.target.value)}
+>
+  <MenuItem value="Soltero">Soltero/a</MenuItem>
+  <MenuItem value="Casado">Casado/a</MenuItem>
+  <MenuItem value="Divorciado">Divorciado/a</MenuItem>
+  <MenuItem value="Viudo">Viudo/a</MenuItem>
+  <MenuItem value="Unión Libre">Unión Libre</MenuItem>
+</TextField>
+```
+
+#### Emergency Contact Section
+
+```tsx
+<Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+  Contacto de Emergencia
+</Typography>
+
+<TextField
+  label="Nombre Contacto"
+  fullWidth
+  value={formData.employee.emergency_contact_name}
+  onChange={(e) => handleChange('employee', 'emergency_contact_name', e.target.value)}
+/>
+
+<TextField
+  label="Teléfono Contacto"
+  fullWidth
+  value={formData.employee.emergency_contact_phone}
+  onChange={(e) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+    handleChange('employee', 'emergency_contact_phone', value);
+  }}
+  error={!!errors.employee.emergency_contact_phone}
+  helperText={errors.employee.emergency_contact_phone || '10 dígitos'}
+  inputProps={{ maxLength: 10 }}
+/>
+
+<TextField
+  label="Parentesco"
+  fullWidth
+  value={formData.employee.emergency_contact_relationship}
+  onChange={(e) => handleChange('employee', 'emergency_contact_relationship', e.target.value)}
+/>
+```
+
+#### Profile Photo Upload
+
+```tsx
+<Button
+  variant="outlined"
+  component="label"
+  fullWidth
+>
+  Subir Foto
+  <input
+    type="file"
+    hidden
+    accept="image/*"
+    onChange={handleImageChange}
+  />
+</Button>
+
+{imagePreview && (
+  <Avatar
+    src={imagePreview}
+    alt="Preview"
+    sx={{ width: 80, height: 80, mt: 1 }}
+  />
+)}
+```
+
+### Tab 2: Address
+
+Complete address information (`src/pages/Employees/components/EmployeeFormDialog.tsx:665-706`):
+
+```tsx
+<TextField
+  label="Calle y Número"
+  fullWidth
+  value={formData.address.street}
+  onChange={(e) => handleChange('address', 'street', e.target.value)}
+/>
+
+<TextField
+  label="Ciudad"
+  fullWidth
+  value={formData.address.city}
+  onChange={(e) => handleChange('address', 'city', e.target.value)}
+/>
+
+<TextField
+  label="Estado"
+  fullWidth
+  value={formData.address.state}
+  onChange={(e) => handleChange('address', 'state', e.target.value)}
+/>
+
+<TextField
+  label="Código Postal"
+  fullWidth
+  value={formData.address.zip_code}
+  onChange={(e) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 5);
+    handleChange('address', 'zip_code', value);
+  }}
+  error={!!errors.address.zip_code}
+  helperText={errors.address.zip_code || '5 dígitos'}
+  inputProps={{ maxLength: 5 }}
+/>
+```
+
+### Tab 3: Labor Information
+
+Job details, salary, and payroll information (`src/pages/Employees/components/EmployeeFormDialog.tsx:709-817`):
+
+```tsx
+{/* Job Information */}
+<TextField
+  label="Puesto / Cargo *"
+  fullWidth
+  value={formData.labor.job_title}
+  onChange={(e) => handleChange('labor', 'job_title', e.target.value)}
+  error={!!errors.labor.job_title}
+  helperText={errors.labor.job_title}
+/>
+
+<TextField
+  label="Departamento"
+  fullWidth
+  value={formData.labor.department}
+  onChange={(e) => handleChange('labor', 'department', e.target.value)}
+/>
+
+{/* Salary with currency formatting */}
+<TextField
+  label="Salario *"
+  fullWidth
+  value={formData.labor.salary}
+  onChange={(e) => handleSalaryChange(e.target.value)}
+  error={!!errors.labor.salary}
+  helperText={errors.labor.salary}
+  InputProps={{
+    startAdornment: <InputAdornment position="start">$</InputAdornment>,
+  }}
+  placeholder="1,500.50"
+/>
+
+{/* Hire Date */}
+<DatePicker
+  label="Fecha de Contratación *"
+  value={formData.labor.hire_date}
+  onChange={(newValue) => handleChange('labor', 'hire_date', newValue)}
+  format="dd/MM/yyyy"
+  slotProps={{
+    textField: {
+      fullWidth: true,
+      error: !!errors.labor.hire_date,
+      helperText: errors.labor.hire_date
+    }
+  }}
+/>
+
+<TextField
+  label="Nivel Educativo"
+  fullWidth
+  value={formData.labor.education_level}
+  onChange={(e) => handleChange('labor', 'education_level', e.target.value)}
+/>
+
+{/* Social Security Number (NSS) - 11 digits */}
+<TextField
+  label="Número de Seguro Social (NSS)"
+  fullWidth
+  value={formData.labor.social_number_hospital}
+  onChange={(e) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 11);
+    handleChange('labor', 'social_number_hospital', value);
+  }}
+  error={!!errors.labor.social_number_hospital}
+  helperText={errors.labor.social_number_hospital || '11 dígitos'}
+  inputProps={{ maxLength: 11 }}
+/>
+
+{/* Bank Account Information */}
+<Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+  Datos Bancarios
+</Typography>
+
+<TextField
+  label="Banco"
+  fullWidth
+  value={formData.labor.bank_name}
+  onChange={(e) => handleChange('labor', 'bank_name', e.target.value)}
+/>
+
+<TextField
+  label="Tipo de Cuenta"
+  fullWidth
+  value={formData.labor.account_type}
+  onChange={(e) => handleChange('labor', 'account_type', e.target.value)}
+/>
+
+<TextField
+  label="Número de Cuenta"
+  fullWidth
+  value={formData.labor.bank_account_number}
+  onChange={(e) => handleChange('labor', 'bank_account_number', e.target.value)}
+/>
+
+<TextField
+  label="Número de Tarjeta"
+  fullWidth
+  value={formData.labor.number_card}
+  onChange={(e) => handleChange('labor', 'number_card', e.target.value)}
+/>
+```
+
+## Form Validation
+
+Comprehensive validation with pattern matching (`src/pages/Employees/components/EmployeeFormDialog.tsx:92-95`):
+
+```tsx
+// Validation patterns
+const RFC_PATTERN = /^[A-ZÑ&]{3,4}\d{6}[A-V1-9][A-Z1-9][0-9A]$/;
+const CURP_PATTERN = /^[A-Z][AEIOUX][A-Z]{2}\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])[HM](AS|B[CS]|C[CLMSH]|D[FG]|G[TR]|HG|JC|M[CNS]|N[ETL]|OC|PL|Q[TR]|S[PLR]|T[CSL]|VZ|YN|ZS)[B-DF-HJ-NP-TV-Z]{3}[A-Z\d]\d$/;
+const NSS_PATTERN = /^\d{11}$/; // Social Security: 11 digits
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+```
+
+### Field-Level Validation
+
+```tsx
+const validateField = (section, field, value) => {
+  // User validations
+  if (section === 'user') {
+    if (field === 'name' && !value.trim()) return 'El nombre es obligatorio';
+    if (field === 'email' && !EMAIL_PATTERN.test(value)) {
+      return 'El correo no es válido';
+    }
+    if (field === 'password' && !employeeIdToEdit) {
+      if (!value.trim()) return 'La contraseña es obligatoria';
+      if (value.length < 8) return 'La contraseña debe tener al menos 8 caracteres';
+    }
+  }
+  
+  // Employee validations
+  if (section === 'employee') {
+    if (field === 'phone' && value && !/^\d{10}$/.test(value)) {
+      return 'El teléfono debe tener 10 dígitos';
+    }
+    if (field === 'rfc' && value && !RFC_PATTERN.test(value.toUpperCase())) {
+      return 'El RFC no tiene un formato válido';
+    }
+    if (field === 'curp' && value && !CURP_PATTERN.test(value.toUpperCase())) {
+      return 'La CURP no tiene un formato válido';
+    }
+  }
+  
+  // Labor validations
+  if (section === 'labor') {
+    if (field === 'job_title' && !value.trim()) {
+      return 'El puesto es obligatorio';
+    }
+    if (field === 'social_number_hospital' && value && !NSS_PATTERN.test(value)) {
+      return 'El NSS debe tener 11 dígitos';
+    }
+  }
+  
+  return '';
+};
+```
+
+## Salary Formatting
+
+Currency formatting for salary input (`src/pages/Employees/components/EmployeeFormDialog.tsx:283-294`):
+
+```tsx
+const formatCurrency = (value) => {
+  const numericValue = value.replace(/[^0-9.]/g, '');
+  if (!numericValue) return '';
+  
+  const parts = numericValue.split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return parts.join('.');
+};
+
+const handleSalaryChange = (value) => {
+  const formatted = formatCurrency(value);
+  handleChange('labor', 'salary', formatted);
+};
+```
+
+## Saving Employee Data
+
+FormData submission with file upload (`src/pages/Employees/components/EmployeeFormDialog.tsx:338-431`):
+
+```tsx
+const handleSubmit = async () => {
+  if (!validateForm()) {
+    Swal.fire('Error', 'Por favor corrige los errores en el formulario', 'error');
+    return;
+  }
+  
+  try {
+    const data = new FormData();
+    
+    // User Data
+    Object.keys(formData.user).forEach(key => {
+      if (key === 'password' && !formData.user[key] && employeeIdToEdit) return;
+      data.append(`user[${key}]`, formData.user[key]);
+    });
+    
+    // Employee Data
+    Object.keys(formData.employee).forEach(key => {
+      if (key === 'employee_img') {
+        if (formData.employee.employee_img) {
+          data.append('employeeImg', formData.employee.employee_img);
+        }
+      } else if (key === 'birth_date') {
+        if (formData.employee.birth_date) {
+          data.append('employee[birthDate]', format(formData.employee.birth_date, 'yyyy-MM-dd'));
+        }
+      } else if (key === 'emergency_contact_name') {
+        data.append('employee[emergencyContactName]', formData.employee[key]);
+      } else {
+        data.append(`employee[${key}]`, formData.employee[key]);
+      }
+    });
+    
+    // Address Data
+    Object.keys(formData.address).forEach(key => {
+      if (key === 'zip_code') {
+        data.append('address[zipCode]', formData.address[key]);
+      } else {
+        data.append(`address[${key}]`, formData.address[key]);
+      }
+    });
+    
+    // Labor Data
+    Object.keys(formData.labor).forEach(key => {
+      let backendKey = key;
+      let value = formData.labor[key];
+      
+      if (key === 'job_title') backendKey = 'jobTitle';
+      else if (key === 'hire_date') {
+        backendKey = 'hireDate';
+        if (value) value = format(value, 'yyyy-MM-dd');
+      }
+      else if (key === 'salary') {
+        value = value.toString().replace(/,/g, ''); // Remove formatting
+      }
+      
+      if (value !== null && value !== '') {
+        data.append(`labor[${backendKey}]`, value);
+      }
+    });
+    
+    // Submit
+    if (employeeIdToEdit) {
+      await updateEmployee(employeeIdToEdit, data);
+      Swal.fire('Éxito', 'Empleado actualizado correctamente', 'success');
+    } else {
+      await saveEmployee(data);
+      Swal.fire('Éxito', 'Empleado creado correctamente', 'success');
+    }
+    
+    onSuccess();
+    onClose();
+  } catch (error) {
+    console.error(error);
+  }
+};
+```
+
+## API Service Methods
+
+Employee API endpoints (`src/services/admin.service.tsx:115-124`):
+
+```tsx
+export const getEmployees = async () => 
+  await axios.get(`${apiUrl}/employee`);
+
+export const getEmployee = async (id) => 
+  await axios.get(`${apiUrl}/employee/${id}`);
+
+export const saveEmployee = async (body) => 
+  await axios.post(`${apiUrl}/employee`, body, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+
+export const updateEmployee = async (id, body) => 
+  await axios.put(`${apiUrl}/employee/${id}`, body, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+
+export const deleteEmployee = async (id) => 
+  await axios.delete(`${apiUrl}/employee/${id}`);
+```
+
+## Delete Employee
+
+Deletion with confirmation (`src/pages/Employees/EmployeesPage.tsx:36-58`):
+
+```tsx
+const handleDelete = async (id) => {
+  const result = await Swal.fire({
+    title: '¿Estás seguro?',
+    text: "No podrás revertir esta acción",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Sí, eliminar',
+    cancelButtonText: 'Cancelar'
+  });
+  
+  if (result.isConfirmed) {
+    try {
+      await deleteEmployee(id);
+      Swal.fire('Eliminado', 'El empleado ha sido eliminado.', 'success');
+      loadEmployees();
+    } catch (error) {
+      Swal.fire('Error', 'No se pudo eliminar el empleado', 'error');
+    }
+  }
+};
+```
+
+<Info>
+  Employee data is designed for Mexican businesses and includes support for Mexican identification documents (RFC, CURP) and social security (NSS/IMSS).
+</Info>
+
+<Warning>
+  Password fields are never pre-filled when editing for security. Leave blank to keep the current password.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Calendar" icon="calendar" href="/features/calendar">
+    View employee birthdays and events
+  </Card>
+  <Card title="Roles & Permissions" icon="shield-halved" href="/user-management/roles-permissions">
+    Assign roles and permissions to employees
+  </Card>
+</CardGroup>

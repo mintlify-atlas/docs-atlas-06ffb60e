@@ -1,0 +1,341 @@
+---
+title: Employees
+description: API endpoints for managing employees
+---
+
+## Employees
+
+### List All Employees
+
+<RequestExample>
+```bash GET /employee
+curl -X GET "${VITE_BASE_URL}/employee" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Retrieves a list of all employees.
+
+**Authentication Required:** Yes
+
+### Response
+
+<ResponseField name="data" type="array">
+  Array of employee objects
+  
+  <ResponseField name="id" type="number">
+    Employee unique identifier
+  </ResponseField>
+  
+  <ResponseField name="first_name" type="string">
+    Employee first name
+  </ResponseField>
+  
+  <ResponseField name="last_name" type="string">
+    Employee last name
+  </ResponseField>
+  
+  <ResponseField name="email" type="string">
+    Employee email address
+  </ResponseField>
+  
+  <ResponseField name="phone" type="string">
+    Employee phone number
+  </ResponseField>
+  
+  <ResponseField name="position" type="string">
+    Job position or title
+  </ResponseField>
+  
+  <ResponseField name="department" type="string">
+    Department name
+  </ResponseField>
+  
+  <ResponseField name="hire_date" type="string">
+    Date of hire
+  </ResponseField>
+  
+  <ResponseField name="status" type="string">
+    Employment status (active, inactive)
+  </ResponseField>
+  
+  <ResponseField name="photo_url" type="string">
+    URL to employee photo
+  </ResponseField>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "data": [
+    {
+      "id": 1,
+      "first_name": "Juan",
+      "last_name": "Pérez",
+      "email": "juan.perez@company.com",
+      "phone": "+52 55 1234 5678",
+      "position": "Sales Manager",
+      "department": "Sales",
+      "hire_date": "2023-01-15",
+      "status": "active",
+      "photo_url": "https://example.com/photos/juan.jpg"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+### Get Employee by ID
+
+<RequestExample>
+```bash GET /employee/{id}
+curl -X GET "${VITE_BASE_URL}/employee/1" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Retrieves a single employee by ID.
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Employee ID
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="number">
+  Employee unique identifier
+</ResponseField>
+
+<ResponseField name="first_name" type="string">
+  Employee first name
+</ResponseField>
+
+<ResponseField name="last_name" type="string">
+  Employee last name
+</ResponseField>
+
+<ResponseField name="email" type="string">
+  Employee email
+</ResponseField>
+
+<ResponseField name="phone" type="string">
+  Employee phone
+</ResponseField>
+
+<ResponseField name="position" type="string">
+  Job position
+</ResponseField>
+
+<ResponseField name="department" type="string">
+  Department
+</ResponseField>
+
+<ResponseField name="hire_date" type="string">
+  Hire date
+</ResponseField>
+
+<ResponseField name="salary" type="number">
+  Employee salary (if authorized)
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Employment status
+</ResponseField>
+
+<ResponseField name="user" type="object">
+  Associated user account if exists
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "id": 1,
+  "first_name": "Juan",
+  "last_name": "Pérez",
+  "email": "juan.perez@company.com",
+  "phone": "+52 55 1234 5678",
+  "position": "Sales Manager",
+  "department": "Sales",
+  "hire_date": "2023-01-15",
+  "salary": 50000.00,
+  "status": "active",
+  "photo_url": "https://example.com/photos/juan.jpg",
+  "user": {
+    "id": 10,
+    "email": "juan.perez@company.com",
+    "role_id": 3
+  }
+}
+```
+</ResponseExample>
+
+---
+
+### Create Employee
+
+<RequestExample>
+```bash POST /employee
+curl -X POST "${VITE_BASE_URL}/employee" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: multipart/form-data" \
+  -F "first_name=María" \
+  -F "last_name=García" \
+  -F "email=maria.garcia@company.com" \
+  -F "phone=+52 55 9876 5432" \
+  -F "position=Marketing Coordinator" \
+  -F "department=Marketing" \
+  -F "hire_date=2024-03-01" \
+  -F "salary=35000" \
+  -F "photo=@/path/to/photo.jpg"
+```
+</RequestExample>
+
+Creates a new employee record.
+
+**Authentication Required:** Yes  
+**Content-Type:** `multipart/form-data`
+
+### Request Body
+
+<ParamField body="first_name" type="string" required>
+  Employee first name
+</ParamField>
+
+<ParamField body="last_name" type="string" required>
+  Employee last name
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  Employee email address
+</ParamField>
+
+<ParamField body="phone" type="string">
+  Employee phone number
+</ParamField>
+
+<ParamField body="position" type="string" required>
+  Job position or title
+</ParamField>
+
+<ParamField body="department" type="string">
+  Department name
+</ParamField>
+
+<ParamField body="hire_date" type="string" required>
+  Date of hire (YYYY-MM-DD format)
+</ParamField>
+
+<ParamField body="salary" type="number">
+  Employee salary
+</ParamField>
+
+<ParamField body="status" type="string">
+  Employment status (default: "active")
+</ParamField>
+
+<ParamField body="photo" type="file">
+  Employee photo file
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="number">
+  Created employee ID
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success message
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "id": 15,
+  "message": "Employee created successfully"
+}
+```
+</ResponseExample>
+
+---
+
+### Update Employee
+
+<RequestExample>
+```bash PUT /employee/{id}
+curl -X PUT "${VITE_BASE_URL}/employee/1" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: multipart/form-data" \
+  -F "position=Senior Sales Manager" \
+  -F "salary=60000"
+```
+</RequestExample>
+
+Updates an existing employee record.
+
+**Authentication Required:** Yes  
+**Content-Type:** `multipart/form-data`
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Employee ID to update
+</ParamField>
+
+### Request Body
+
+Same fields as Create Employee (all optional for updates)
+
+### Response
+
+<ResponseField name="message" type="string">
+  Success message
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "message": "Employee updated successfully"
+}
+```
+</ResponseExample>
+
+---
+
+### Delete Employee
+
+<RequestExample>
+```bash DELETE /employee/{id}
+curl -X DELETE "${VITE_BASE_URL}/employee/1" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Deletes an employee record.
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Employee ID to delete
+</ParamField>
+
+### Response
+
+<ResponseField name="message" type="string">
+  Success message
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "message": "Employee deleted successfully"
+}
+```
+</ResponseExample>

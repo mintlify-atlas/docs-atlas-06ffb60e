@@ -1,0 +1,348 @@
+---
+title: 'Catalog Management'
+description: 'Manage product catalogs including categories, colors, sizes, and fiscal configuration'
+---
+
+## Overview
+
+MKing Admin provides comprehensive catalog management for organizing products. The catalog system includes categories, colors, sizes, and fiscal information (CFDI and Regimen Fiscal).
+
+## Catalog Types
+
+The application supports the following catalog types:
+
+- **Categories**: Product classification and organization
+- **Colors**: Product color options with hex code support
+- **Sizes**: Product dimensions (height and width)
+- **Regimen Fiscal**: Tax regime classification
+- **CFDI**: Electronic invoice usage types
+
+## Product Categories
+
+Categories help organize and classify products within the system.
+
+### Category Structure
+
+```typescript
+type Category = {
+  id: number;
+  name: string;
+}
+```
+
+### API Endpoints
+
+```typescript
+// Get all categories
+GET /api/product_category
+
+// Get single category
+GET /api/product_category/{id}
+
+// Create category
+POST /api/product_category
+Body: { name: string }
+
+// Update category
+PUT /api/product_category/{id}
+Body: { name: string }
+
+// Delete category
+DELETE /api/product_category/{id}
+```
+
+### Service Functions
+
+```typescript src/services/admin.service.tsx
+export const getCategories = async () => 
+  await axios.get(`${apiUrl}/product_category`);
+
+export const getCategory = async (id: number) => 
+  await axios.get(`${apiUrl}/product_category/${id}`);
+
+export const createCategory = async (body: any) => 
+  await axios.post(`${apiUrl}/product_category`, body);
+
+export const updateCategory = async (id: number, body: any) => 
+  await axios.put(`${apiUrl}/product_category/${id}`, body);
+
+export const deleteCategory = async (id: number) => 
+  await axios.delete(`${apiUrl}/product_category/${id}`);
+```
+
+## Product Colors
+
+Colors support both solid and dual-tone (gradient) color schemes using hex codes.
+
+### Color Structure
+
+```typescript
+type ProductColor = {
+  id: number;
+  name: string;
+  hex_code: string;      // Primary color (required)
+  hex_code_1?: string;   // Secondary color for gradients (optional)
+}
+```
+
+### Dual-Tone Colors
+
+Colors can be defined with two hex codes to create gradient effects:
+
+```typescript
+// Solid color
+{
+  name: "Red",
+  hex_code: "#FF0000"
+}
+
+// Gradient color
+{
+  name: "Sunset",
+  hex_code: "#FF0000",    // Left/top color
+  hex_code_1: "#FFA500"  // Right/bottom color (135deg gradient)
+}
+```
+
+### API Endpoints
+
+```typescript
+// Get all colors
+GET /api/product_color
+
+// Get single color
+GET /api/product_color/{id}
+
+// Create color
+POST /api/product_color
+Body: { 
+  name: string, 
+  hex_code: string, 
+  hex_code_1?: string 
+}
+
+// Update color
+PUT /api/product_color/{id}
+Body: { 
+  name: string, 
+  hex_code: string, 
+  hex_code_1?: string 
+}
+
+// Delete color
+DELETE /api/product_color/{id}
+```
+
+### Service Functions
+
+```typescript src/services/admin.service.tsx
+export const getColors = async () => 
+  await axios.get(`${apiUrl}/product_color`);
+
+export const getColor = async (id: number) => 
+  await axios.get(`${apiUrl}/product_color/${id}`);
+
+export const createColor = async (body: any) => 
+  await axios.post(`${apiUrl}/product_color`, body);
+
+export const updateColor = async (id: number) => 
+  await axios.put(`${apiUrl}/product_color/${id}`);
+
+export const deleteColor = async (id: number) => 
+  await axios.delete(`${apiUrl}/product_color/${id}`);
+```
+
+### Color Picker Integration
+
+The catalog page includes a color picker using `react-color`:
+
+```typescript
+import { ChromePicker } from 'react-color';
+
+// Predefined color palette
+const colorPalette = [
+  "#FF0000", "#000000", "#00FF00", "#0000FF", 
+  "#FFFF00", "#FFA500", "#800080", "#FFFFFF"
+];
+```
+
+<Note>
+  The color display in the catalog grid shows gradients at 135 degrees when both hex codes are provided.
+</Note>
+
+## Product Sizes
+
+Sizes define product dimensions with height and width measurements.
+
+### Size Structure
+
+```typescript
+type ProductSize = {
+  id: number;
+  name: string;
+  description?: string;
+  height: number;   // Height dimension
+  width: number;    // Width dimension
+}
+```
+
+### API Endpoints
+
+```typescript
+// Get all sizes
+GET /api/product_size
+
+// Get single size
+GET /api/product_size/{id}
+
+// Create size
+POST /api/product_size
+Body: { 
+  name: string, 
+  description?: string,
+  height: number,
+  width: number 
+}
+
+// Update size
+PUT /api/product_size/{id}
+Body: { 
+  name: string, 
+  description?: string,
+  height: number,
+  width: number 
+}
+
+// Delete size
+DELETE /api/product_size/{id}
+```
+
+### Service Functions
+
+```typescript src/services/admin.service.tsx
+export const getSizes = async () => 
+  await axios.get(`${apiUrl}/product_size`);
+
+export const getSize = async (id: number) => 
+  await axios.get(`${apiUrl}/product_size/${id}`);
+
+export const createSize = async (body: any) => 
+  await axios.post(`${apiUrl}/product_size`, body);
+
+export const updateSize = async (id: number) => 
+  await axios.put(`${apiUrl}/product_size/${id}`);
+
+export const deleteSize = async (id: number) => 
+  await axios.delete(`${apiUrl}/product_size/${id}`);
+```
+
+## Fiscal Catalogs
+
+Fiscal catalogs are used for invoicing and tax compliance in Mexico.
+
+### Regimen Fiscal
+
+Tax regime classification for clients and invoicing:
+
+```typescript src/services/admin.service.tsx
+export const getRegimenFiscal = async () => 
+  await axios.get(`${apiUrl}/regimen_fiscal`);
+```
+
+```typescript
+GET /api/regimen_fiscal
+```
+
+### CFDI (Comprobante Fiscal Digital por Internet)
+
+Electronic invoice usage types:
+
+```typescript src/services/admin.service.tsx
+export const getCfdi = async () => 
+  await axios.get(`${apiUrl}/cfdi`);
+```
+
+```typescript
+GET /api/cfdi
+```
+
+<Warning>
+  Fiscal catalogs (Regimen Fiscal and CFDI) are typically read-only and managed by the system based on Mexican tax authority (SAT) requirements.
+</Warning>
+
+## Using Catalogs in the UI
+
+The catalog page (`src/pages/catalogs/CatalogPage.tsx`) provides a tabbed interface for managing all catalog types:
+
+```typescript
+const TABS = [
+  { label: "Categorías", value: "categories" },
+  { label: "Colores", value: "colors" },
+  { label: "Tallas", value: "sizes" },
+];
+```
+
+### Loading Catalog Data
+
+```typescript
+import { 
+  getCategories, 
+  getColors, 
+  getSizes 
+} from '../../services/admin.service';
+
+useEffect(() => {
+  getCategories().then(res => setCategories(res.data));
+  getColors().then(res => setColors(res.data));
+  getSizes().then(res => setSizes(res.data));
+}, []);
+```
+
+### Creating Catalog Items
+
+```typescript
+const handleSave = async () => {
+  const endpoint = tab === "categories" 
+    ? `/product_category` 
+    : tab === "colors" 
+    ? `/product_color` 
+    : `/product_size`;
+  
+  let body = { name: form.name };
+  
+  if (tab === "colors") {
+    body = { 
+      name: form.name, 
+      hex_code: form.hex_code, 
+      hex_code_1: form.hex_code_1 
+    };
+  }
+  
+  if (tab === "sizes") {
+    body = {
+      name: form.name,
+      description: form.description || null,
+      height: Number(form.height),
+      width: Number(form.width)
+    };
+  }
+  
+  const res = await axios.post(
+    `${import.meta.env.VITE_BASE_URL}${endpoint}`, 
+    body
+  );
+};
+```
+
+## Best Practices
+
+1. **Validation**: Always validate required fields before submitting catalog items
+2. **Color Codes**: Use valid hex color codes (e.g., `#FF0000`) for color catalogs
+3. **Dimensions**: Ensure height and width are positive numbers for sizes
+4. **Confirmation**: Use confirmation dialogs (SweetAlert2) before deleting catalog items
+5. **Error Handling**: Implement proper error handling for API requests
+
+## Related Resources
+
+- [API Integration](/configuration/api-integration)
+- [Environment Configuration](/configuration/environment)

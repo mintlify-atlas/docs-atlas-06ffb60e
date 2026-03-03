@@ -1,0 +1,340 @@
+---
+title: Inventory
+description: API endpoints for managing product inventory across warehouses
+---
+
+## Inventory
+
+### Get Inventory by Product
+
+<RequestExample>
+```bash GET /inventory/product/{productId}
+curl -X GET "${VITE_BASE_URL}/inventory/product/1" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Retrieves inventory information for a specific product across all warehouses.
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="productId" type="number" required>
+  Product ID to retrieve inventory for
+</ParamField>
+
+### Response
+
+<ResponseField name="product_id" type="number">
+  Product unique identifier
+</ResponseField>
+
+<ResponseField name="product" type="object">
+  Product information
+  
+  <ResponseField name="id" type="number">
+    Product ID
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    Product name
+  </ResponseField>
+  
+  <ResponseField name="sku" type="string">
+    Product SKU
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="total_quantity" type="number">
+  Total quantity across all warehouses
+</ResponseField>
+
+<ResponseField name="warehouses" type="array">
+  Inventory breakdown by warehouse
+  
+  <ResponseField name="warehouse_id" type="number">
+    Warehouse ID
+  </ResponseField>
+  
+  <ResponseField name="warehouse_name" type="string">
+    Warehouse name
+  </ResponseField>
+  
+  <ResponseField name="quantity" type="number">
+    Available quantity in this warehouse
+  </ResponseField>
+  
+  <ResponseField name="reserved" type="number">
+    Reserved quantity (for pending orders)
+  </ResponseField>
+  
+  <ResponseField name="available" type="number">
+    Available quantity (quantity - reserved)
+  </ResponseField>
+  
+  <ResponseField name="min_stock" type="number">
+    Minimum stock level
+  </ResponseField>
+  
+  <ResponseField name="max_stock" type="number">
+    Maximum stock level
+  </ResponseField>
+  
+  <ResponseField name="reorder_point" type="number">
+    Reorder point threshold
+  </ResponseField>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "product_id": 1,
+  "product": {
+    "id": 1,
+    "name": "T-Shirt Premium",
+    "sku": "TSH-001"
+  },
+  "total_quantity": 450,
+  "warehouses": [
+    {
+      "warehouse_id": 1,
+      "warehouse_name": "Almacén Principal",
+      "quantity": 300,
+      "reserved": 50,
+      "available": 250,
+      "min_stock": 100,
+      "max_stock": 500,
+      "reorder_point": 150
+    },
+    {
+      "warehouse_id": 2,
+      "warehouse_name": "Almacén Monterrey",
+      "quantity": 150,
+      "reserved": 20,
+      "available": 130,
+      "min_stock": 50,
+      "max_stock": 300,
+      "reorder_point": 75
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+### Create Inventory Record
+
+<RequestExample>
+```bash POST /inventory
+curl -X POST "${VITE_BASE_URL}/inventory" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product_id": 1,
+    "warehouse_id": 1,
+    "quantity": 100,
+    "min_stock": 50,
+    "max_stock": 500,
+    "reorder_point": 100
+  }'
+```
+</RequestExample>
+
+Creates a new inventory record for a product in a specific warehouse.
+
+**Authentication Required:** Yes
+
+### Request Body
+
+<ParamField body="product_id" type="number" required>
+  Product ID
+</ParamField>
+
+<ParamField body="warehouse_id" type="number" required>
+  Warehouse ID
+</ParamField>
+
+<ParamField body="quantity" type="number" required>
+  Initial quantity
+</ParamField>
+
+<ParamField body="min_stock" type="number">
+  Minimum stock level for alerts
+</ParamField>
+
+<ParamField body="max_stock" type="number">
+  Maximum stock level
+</ParamField>
+
+<ParamField body="reorder_point" type="number">
+  Quantity threshold to trigger reorder
+</ParamField>
+
+<ParamField body="location" type="string">
+  Physical location within warehouse (e.g., "Aisle 3, Shelf B")
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="number">
+  Created inventory record ID
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success message
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "id": 42,
+  "message": "Inventory record created successfully"
+}
+```
+</ResponseExample>
+
+---
+
+### Update Inventory
+
+<RequestExample>
+```bash PUT /inventory/{id}
+curl -X PUT "${VITE_BASE_URL}/inventory/42" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "quantity": 150,
+    "operation": "adjustment",
+    "reason": "Physical count adjustment"
+  }'
+```
+</RequestExample>
+
+Updates an inventory record.
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Inventory record ID to update
+</ParamField>
+
+### Request Body
+
+<ParamField body="quantity" type="number">
+  New quantity (for adjustments)
+</ParamField>
+
+<ParamField body="operation" type="string">
+  Operation type:
+  - `adjustment`: Manual adjustment
+  - `receive`: Receiving stock
+  - `ship`: Shipping stock
+  - `transfer`: Transfer between warehouses
+  - `return`: Customer return
+</ParamField>
+
+<ParamField body="quantity_change" type="number">
+  Quantity to add (positive) or subtract (negative)
+</ParamField>
+
+<ParamField body="reason" type="string">
+  Reason for the inventory change
+</ParamField>
+
+<ParamField body="reference" type="string">
+  Reference number (PO number, transfer number, etc.)
+</ParamField>
+
+<ParamField body="min_stock" type="number">
+  Update minimum stock level
+</ParamField>
+
+<ParamField body="max_stock" type="number">
+  Update maximum stock level
+</ParamField>
+
+<ParamField body="reorder_point" type="number">
+  Update reorder point
+</ParamField>
+
+<ParamField body="location" type="string">
+  Update physical location
+</ParamField>
+
+### Response
+
+<ResponseField name="message" type="string">
+  Success message
+</ResponseField>
+
+<ResponseField name="previous_quantity" type="number">
+  Quantity before update
+</ResponseField>
+
+<ResponseField name="new_quantity" type="number">
+  Quantity after update
+</ResponseField>
+
+<ResponseField name="transaction_id" type="number">
+  Inventory transaction record ID
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "message": "Inventory updated successfully",
+  "previous_quantity": 100,
+  "new_quantity": 150,
+  "transaction_id": 1523
+}
+```
+</ResponseExample>
+
+---
+
+## Inventory Movements
+
+All inventory updates create transaction records for audit purposes. These movements track:
+
+- **Operation Type**: What caused the inventory change
+- **User**: Who made the change
+- **Timestamp**: When the change occurred
+- **Quantity Change**: Amount added or removed
+- **Reference**: Related document numbers
+- **Reason**: Explanation for the change
+
+### Common Operations
+
+<CardGroup cols={2}>
+  <Card title="Receive Stock" icon="truck">
+    Add inventory when receiving new stock from suppliers
+  </Card>
+  
+  <Card title="Ship Stock" icon="box">
+    Reduce inventory when fulfilling orders
+  </Card>
+  
+  <Card title="Adjust" icon="sliders">
+    Manual adjustments for physical counts or corrections
+  </Card>
+  
+  <Card title="Transfer" icon="arrows-left-right">
+    Move inventory between warehouses
+  </Card>
+</CardGroup>
+
+---
+
+## Low Stock Alerts
+
+The system automatically monitors inventory levels:
+
+- **Warning**: When quantity falls below `reorder_point`
+- **Critical**: When quantity falls below `min_stock`
+- **Overstocked**: When quantity exceeds `max_stock`
+
+Configure these thresholds when creating or updating inventory records to receive automated alerts.

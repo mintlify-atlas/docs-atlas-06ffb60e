@@ -1,0 +1,567 @@
+---
+title: Routing
+description: React Router v6 routing system with permission-based protected routes
+---
+
+MKing Admin uses **React Router v6** for client-side routing with a permission-based protection system and animated page transitions.
+
+## Routing Architecture
+
+<CardGroup cols={3}>
+  <Card title="AppRouter" icon="route">
+    Main routing configuration with all application routes
+  </Card>
+  
+  <Card title="ProtectedRoute" icon="shield">
+    Permission-based route protection wrapper
+  </Card>
+  
+  <Card title="MenuSidebar" icon="bars">
+    Central configuration for routes, permissions, and menu items
+  </Card>
+</CardGroup>
+
+## AppRouter Component
+
+The main router component handles all application routing, authentication checks, and page transitions.
+
+```tsx src/router/AppRouter.tsx
+import React, { useEffect } from "react";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import { LoginPage } from "../auth/pages";
+import { ProtectedRoute } from "./ProtectedRoute";
+import { MenuSidebar } from "../core/MenuSidebar";
+import { getInfoUser } from "../services/service";
+import { useAuthStore } from "../store/authStore";
+
+// Auth redirect component
+const AuthRedirect = () => {
+  const isLoggedIn = !!localStorage.getItem("token");
+  if (isLoggedIn) {
+    return <Navigate to="/home" replace />;
+  } else {
+    return <Navigate to="/login" replace />;
+  }
+};
+
+// Page transition wrapper
+const PageTransition = ({ children }: { children: React.ReactNode }) => (
+  <motion.div
+    initial={{ opacity: 0, x: 20 }}
+    animate={{ opacity: 1, x: 0 }}
+    exit={{ opacity: 0, x: -20 }}
+    transition={{ duration: 0.3 }}
+    style={{ width: "100%", height: "100%" }}
+  >
+    {children}
+  </motion.div>
+);
+
+export const AppRouter = () => {
+  const location = useLocation();
+  const { permissions, setAuth, isAuthenticated } = useAuthStore();
+
+  // Fetch user info on mount if token exists
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token && !isAuthenticated) {
+      getInfoUser()
+        .then((res) => {
+          const user = res.data;
+          const perms = user.roles.flatMap((role: any) =>
+            role.permissions.map((p: any) => p.slug)
+          );
+          setAuth(user, perms);
+        })
+        .catch((err) => {
+          console.error("Error fetching user info in router:", err);
+        });
+    }
+  }, [isAuthenticated, setAuth]);
+
+  // Filter routes based on permissions
+  const routeList = MenuSidebar.filter(
+    (item) => permissions.includes(item.permission) || item.permission === "auth"
+  );
+
+  // Generate route components from MenuSidebar
+  const routeMaps = routeList.map(({ id, page, permission, path }: any) => (
+    <Route
+      key={id}
+      element={<ProtectedRoute isAllowed={permissions.includes(permission) || permission === "auth"} />}
+    >
+      <Route path={path} element={<PageTransition>{page}</PageTransition>} />
+    </Route>
+  ));
+
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/" element={<PageTransition><HomePage /></PageTransition>} />
+        <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
+        <Route path="/home" element={<PageTransition><HomePage /></PageTransition>} />
+        <Route path="/catalogs" element={<PageTransition><CatalogPage /></PageTransition>} />
+        <Route path="/quotations/create" element={<PageTransition><CreateAdminQuotation /></PageTransition>} />
+        <Route path="/roles/create" element={<PageTransition><CreateRole /></PageTransition>} />
+        <Route path="/roles/edit/:id" element={<PageTransition><CreateRole /></PageTransition>} />
+        <Route path="/employees" element={<PageTransition><EmployeesPage /></PageTransition>} />
+        <Route path="/users" element={<PageTransition><UsersPage /></PageTransition>} />
+        <Route path="/calendar" element={<PageTransition><Calendar /></PageTransition>} />
+        <Route path="/product" element={<PageTransition><ProductPage /></PageTransition>} />
+        <Route index element={<AuthRedirect />} />
+        <Route path="*" element={<AuthRedirect />} />
+        {routeMaps}
+      </Routes>
+    </AnimatePresence>
+  );
+};
+```
+
+### Key Features
+
+<Accordion title="Authentication Check on Mount">
+  When the router mounts, it checks for a token in localStorage. If a token exists but the user isn't authenticated in the store, it fetches user information:
+
+  ```tsx
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token && !isAuthenticated) {
+      getInfoUser().then((res) => {
+        const user = res.data;
+        const perms = user.roles.flatMap((role: any) =>
+          role.permissions.map((p: any) => p.slug)
+        );
+        setAuth(user, perms);
+      });
+    }
+  }, [isAuthenticated, setAuth]);
+  ```
+
+  This ensures users stay logged in across page refreshes.
+</Accordion>
+
+<Accordion title="Dynamic Route Generation">
+  Routes are dynamically generated from the `MenuSidebar` configuration:
+
+  ```tsx
+  const routeList = MenuSidebar.filter(
+    (item) => permissions.includes(item.permission) || item.permission === "auth"
+  );
+
+  const routeMaps = routeList.map(({ id, page, permission, path }) => (
+    <Route
+      key={id}
+      element={<ProtectedRoute isAllowed={permissions.includes(permission)} />}
+    >
+      <Route path={path} element={<PageTransition>{page}</PageTransition>} />
+    </Route>
+  ));
+  ```
+
+  This centralizes route configuration and ensures the sidebar and routes stay in sync.
+</Accordion>
+
+<Accordion title="Animated Page Transitions">
+  Uses Framer Motion for smooth page transitions:
+
+  ```tsx
+  const PageTransition = ({ children }) => (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      transition={{ duration: 0.3 }}
+    >
+      {children}
+    </motion.div>
+  );
+  ```
+
+  Pages slide in from the right and slide out to the left on navigation.
+</Accordion>
+
+<Accordion title="Auth Redirect Logic">
+  The `AuthRedirect` component handles fallback routing:
+
+  ```tsx
+  const AuthRedirect = () => {
+    const isLoggedIn = !!localStorage.getItem("token");
+    if (isLoggedIn) {
+      return <Navigate to="/home" replace />;
+    } else {
+      return <Navigate to="/login" replace />;
+    }
+  };
+  ```
+
+  - Authenticated users accessing `/` or unknown routes → redirected to `/home`
+  - Unauthenticated users → redirected to `/login`
+</Accordion>
+
+## ProtectedRoute Component
+
+A simple but powerful wrapper that protects routes based on permissions.
+
+```tsx src/router/ProtectedRoute.tsx
+import { Navigate, Outlet } from "react-router-dom";
+
+export const ProtectedRoute = ({
+  isAllowed,
+  redirectTo = "/home",
+  children,
+}: any) => {
+  if (!isAllowed) {
+    return <Navigate to={redirectTo} replace />;
+  }
+  return children ? children : <Outlet />;
+};
+```
+
+### How It Works
+
+<Steps>
+  <Step title="Check Permission">
+    The `isAllowed` prop determines if the user has permission to access the route.
+  </Step>
+  
+  <Step title="Redirect if Unauthorized">
+    If `isAllowed` is `false`, the user is redirected to the `redirectTo` path (defaults to `/home`).
+  </Step>
+  
+  <Step title="Render Route">
+    If authorized, it renders either the `children` prop or an `<Outlet />` for nested routes.
+  </Step>
+</Steps>
+
+### Usage Examples
+
+<Tabs>
+  <Tab title="With Children">
+    ```tsx
+    <Route
+      element={
+        <ProtectedRoute isAllowed={permissions.includes('users.view')} />
+      }
+    >
+      <Route path="/users" element={<UsersPage />} />
+    </Route>
+    ```
+  </Tab>
+  
+  <Tab title="With Custom Redirect">
+    ```tsx
+    <ProtectedRoute
+      isAllowed={isAdmin}
+      redirectTo="/unauthorized"
+    >
+      <AdminPanel />
+    </ProtectedRoute>
+    ```
+  </Tab>
+  
+  <Tab title="Nested Routes">
+    ```tsx
+    <Route element={<ProtectedRoute isAllowed={hasAccess} />}>
+      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/settings" element={<Settings />} />
+    </Route>
+    ```
+  </Tab>
+</Tabs>
+
+## MenuSidebar Configuration
+
+The `MenuSidebar` array serves as the single source of truth for routes, permissions, and navigation.
+
+```tsx src/core/MenuSidebar.tsx
+import { HomePage } from "../home/pages/HomePage";
+import { ProductPage } from "../pages/Product/ProductPage";
+import HomeIcon from "@mui/icons-material/Home";
+import ViewListIcon from "@mui/icons-material/ViewList";
+
+export const MenuSidebar = [
+  {
+    id: 1,
+    title: "Principal",
+    text_menu: "Home",
+    icon: <HomeIcon />,
+    path: "/home",
+    permission: "home.panel",
+    page: <HomePage />
+  },
+  {
+    id: 2,
+    title: "Productos",
+    text_menu: "Productos",
+    icon: <ViewListIcon />,
+    path: "/product",
+    permission: "products.view",
+    page: <ProductPage />
+  },
+  // ... more menu items
+];
+```
+
+### Menu Item Structure
+
+<ParamField path="id" type="number" required>
+  Unique identifier for the menu item
+</ParamField>
+
+<ParamField path="title" type="string" required>
+  Page title displayed in the UI
+</ParamField>
+
+<ParamField path="text_menu" type="string" required>
+  Text shown in the sidebar menu
+</ParamField>
+
+<ParamField path="icon" type="ReactNode" required>
+  MUI icon component for the menu item
+</ParamField>
+
+<ParamField path="path" type="string" required>
+  Route path (e.g., `/product`, `/users`)
+</ParamField>
+
+<ParamField path="permission" type="string" required>
+  Permission slug required to access this route (e.g., `"products.view"`)
+</ParamField>
+
+<ParamField path="page" type="ReactNode" required>
+  React component to render for this route
+</ParamField>
+
+## Permission System
+
+Permissions are managed through a role-based access control (RBAC) system.
+
+### Permission Flow
+
+<Steps>
+  <Step title="User Login">
+    User authenticates and receives a JWT token stored in localStorage.
+  </Step>
+  
+  <Step title="Fetch User Data">
+    AppRouter fetches user information including roles and permissions.
+  </Step>
+  
+  <Step title="Extract Permissions">
+    Permissions are extracted from user roles and stored in Zustand:
+    
+    ```tsx
+    const perms = user.roles.flatMap((role: any) =>
+      role.permissions.map((p: any) => p.slug)
+    );
+    setAuth(user, perms);
+    ```
+  </Step>
+  
+  <Step title="Route Filtering">
+    Routes are filtered based on user permissions:
+    
+    ```tsx
+    const routeList = MenuSidebar.filter(
+      (item) => permissions.includes(item.permission)
+    );
+    ```
+  </Step>
+  
+  <Step title="Access Control">
+    ProtectedRoute enforces access control on route navigation.
+  </Step>
+</Steps>
+
+### Permission Naming Convention
+
+Permissions follow the pattern: `resource.action`
+
+<CodeGroup>
+```text Examples
+home.panel         # Access to home dashboard
+products.view      # View products
+products.create    # Create products
+products.edit      # Edit products
+products.delete    # Delete products
+users.view         # View users
+users.manage       # Manage users
+roles.view         # View roles
+roles.edit         # Edit roles
+catalogs.manage    # Manage catalogs
+```
+</CodeGroup>
+
+## Route Parameters
+
+React Router v6 supports dynamic route parameters.
+
+### Defining Parameterized Routes
+
+```tsx
+<Route path="/roles/edit/:id" element={<CreateRole />} />
+```
+
+### Accessing Route Parameters
+
+```tsx
+import { useParams } from 'react-router-dom';
+
+function CreateRole() {
+  const { id } = useParams();
+  
+  useEffect(() => {
+    if (id) {
+      // Edit mode - fetch role data
+      fetchRole(id);
+    }
+  }, [id]);
+  
+  return <div>Role ID: {id}</div>;
+}
+```
+
+## Navigation
+
+### Programmatic Navigation
+
+<Tabs>
+  <Tab title="useNavigate Hook">
+    ```tsx
+    import { useNavigate } from 'react-router-dom';
+
+    function MyComponent() {
+      const navigate = useNavigate();
+
+      const goToProducts = () => {
+        navigate('/product');
+      };
+
+      const goBack = () => {
+        navigate(-1);
+      };
+
+      return (
+        <>
+          <button onClick={goToProducts}>View Products</button>
+          <button onClick={goBack}>Go Back</button>
+        </>
+      );
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Link Component">
+    ```tsx
+    import { Link } from 'react-router-dom';
+
+    function Navigation() {
+      return (
+        <nav>
+          <Link to="/home">Home</Link>
+          <Link to="/product">Products</Link>
+          <Link to="/users">Users</Link>
+        </nav>
+      );
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Navigate Component">
+    ```tsx
+    import { Navigate } from 'react-router-dom';
+
+    function PrivatePage() {
+      const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+      if (!isAuthenticated) {
+        return <Navigate to="/login" replace />;
+      }
+
+      return <div>Private Content</div>;
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Centralize Route Config" icon="sitemap">
+    Use MenuSidebar as the single source of truth for routes and permissions.
+  </Card>
+  
+  <Card title="Always Use Replace" icon="arrow-rotate-left">
+    Use `replace` prop on redirects to prevent back button issues.
+  </Card>
+  
+  <Card title="Permission-First" icon="shield-check">
+    Check permissions before rendering components, not inside them.
+  </Card>
+  
+  <Card title="Handle 404s" icon="triangle-exclamation">
+    Always include a catch-all route for unmatched paths.
+  </Card>
+</CardGroup>
+
+## Common Patterns
+
+### Conditional Routing Based on Auth
+
+```tsx
+function App() {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  return (
+    <Routes>
+      <Route path="/login" element={
+        isAuthenticated ? <Navigate to="/home" /> : <LoginPage />
+      } />
+      <Route path="/home" element={
+        isAuthenticated ? <HomePage /> : <Navigate to="/login" />
+      } />
+    </Routes>
+  );
+}
+```
+
+### Loading State During Auth Check
+
+```tsx
+function AppRouter() {
+  const [isLoading, setIsLoading] = useState(true);
+  const { setAuth, isAuthenticated } = useAuthStore();
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      getInfoUser()
+        .then((res) => {
+          // Set auth...
+        })
+        .finally(() => setIsLoading(false));
+    } else {
+      setIsLoading(false);
+    }
+  }, []);
+
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  return <Routes>...</Routes>;
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Project Structure" icon="folder-tree" href="/development/project-structure">
+    Understand the overall project organization
+  </Card>
+  
+  <Card title="State Management" icon="database" href="/development/state-management">
+    Learn about Redux and Zustand state management
+  </Card>
+</CardGroup>

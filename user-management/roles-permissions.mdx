@@ -1,0 +1,249 @@
+---
+title: Roles and Permissions
+description: Role-based access control system with granular permission management
+---
+
+## Overview
+
+MKing Admin implements a robust role-based access control (RBAC) system that controls user access to features and data throughout the application. The system uses permission slugs to enforce access rules at both the routing and UI levels.
+
+## Architecture
+
+### Permission Storage
+
+Permissions are stored in Zustand state management and persisted through JWT authentication:
+
+```tsx
+// src/store/authStore.ts
+interface AuthState {
+  user: User | null;
+  permissions: string[];  // Array of permission slugs
+  isAuthenticated: boolean;
+  setAuth: (user: User, permissions: string[]) => void;
+  clearAuth: () => void;
+}
+```
+
+### Permission Extraction
+
+When a user logs in, their permissions are extracted from their assigned roles:
+
+```tsx
+// src/auth/pages/LoginPage.tsx:34
+const { data: userData } = await getInfoUser();
+const perms = userData.roles.flatMap((role: any) =>
+  role.permissions.map((p: any) => p.slug)
+);
+setAuth(userData, perms);
+```
+
+## Permission System
+
+### Available Permissions
+
+Permissions are organized by module using a hierarchical slug structure:
+
+| Module | Permission Slug | Description |
+|--------|----------------|-------------|
+| Home | `home.panel` | Access to dashboard |
+| Products | `products.view` | View products |
+| Catalogs | `catalogs.manage` | Manage product catalogs |
+| Clients | `clients.view` | View client information |
+| Quotations | `quotations.admin.view` | View admin quotations |
+| Roles | `roles.view` | View and manage roles |
+| Employees | `employees.view` | View employees |
+| Users | `users.view` | Manage system users |
+| Calendar | `events.view` | Access calendar |
+
+<Info>
+Permission slugs follow the pattern `module.action` (e.g., `products.view`, `catalogs.manage`)
+</Info>
+
+### Creating Permissions
+
+Permissions are created through the Permissions Manager interface:
+
+```tsx
+// src/pages/Roles/components/PermissionsManager.tsx:64
+const handleAdd = async () => {
+  if (!form.name || !form.slug || !form.module) {
+    Swal.fire('Error', 'Nombre, Slug y Módulo son obligatorios', 'error');
+    return;
+  }
+  
+  await createPermission(form);
+};
+```
+
+**Permission Structure:**
+- **Name**: Display name (e.g., "View Users")
+- **Slug**: Unique identifier (e.g., `users.view`)
+- **Module**: Grouping category (e.g., "Usuarios")
+- **Description**: Optional explanation
+
+## Role Management
+
+### Creating Roles
+
+Roles group multiple permissions together and are assigned to users:
+
+<Steps>
+  <Step title="Define Role Information">
+    Navigate to `/roles/create` and provide:
+    - **Name**: Role display name
+    - **Slug**: Unique identifier (cannot be changed after creation)
+    - **Description**: Optional role description
+  </Step>
+  
+  <Step title="Select Permissions">
+    Permissions are grouped by module. You can:
+    - Select individual permissions by checking them
+    - Select all permissions in a module by checking the module header
+    - The checkbox will show indeterminate state when some (but not all) module permissions are selected
+  </Step>
+  
+  <Step title="Save Role">
+    The role is created with the selected permissions and can be assigned to users
+  </Step>
+</Steps>
+
+### Role API Endpoints
+
+```tsx
+// src/services/admin.service.tsx:105-109
+export const getRoles = async () => await axios.get(`${apiUrl}/roles`);
+export const getRole = async (id: number) => await axios.get(`${apiUrl}/roles/${id}`);
+export const createRole = async (body: any) => await axios.post(`${apiUrl}/roles`, body);
+export const updateRole = async (id: number, body: any) => await axios.put(`${apiUrl}/roles/${id}`, body);
+export const deleteRole = async (id: number) => await axios.delete(`${apiUrl}/roles/${id}`);
+```
+
+### Role Protection
+
+<Warning>
+The `admin` role cannot be deleted to prevent system lockout. This protection is enforced in the UI at src/pages/Roles/RolesPage.tsx:74
+</Warning>
+
+## Permission Enforcement
+
+### Route Protection
+
+Routes are protected using the `ProtectedRoute` component:
+
+```tsx
+// src/router/AppRouter.tsx:68-74
+const routeMaps = routeList.map(({ id, page, permission, path }: any) => (
+  <Route
+    key={id}
+    element={<ProtectedRoute isAllowed={permissions.includes(permission) || permission === "auth"} />}
+  >
+    <Route path={path} element={<PageTransition>{page}</PageTransition>} />
+  </Route>
+));
+```
+
+The `ProtectedRoute` component redirects unauthorized users:
+
+```tsx
+// src/router/ProtectedRoute.tsx:3-12
+export const ProtectedRoute = ({ isAllowed, redirectTo = "/home", children }: any) => {
+  if (!isAllowed) {
+    return <Navigate to={redirectTo} replace />;
+  }
+  return children ? children : <Outlet />;
+};
+```
+
+### Menu Visibility
+
+The sidebar menu is dynamically filtered based on user permissions:
+
+```tsx
+// src/router/AppRouter.tsx:64-66
+const routeList = MenuSidebar.filter(
+  (item) => permissions.includes(item.permission) || item.permission === "auth"
+);
+```
+
+### Permission Checks in Components
+
+Components can access permissions through the auth store:
+
+```tsx
+import { useAuthStore } from "../../store/authStore";
+
+const permissions = useAuthStore((state) => state.permissions);
+
+// Check if user has specific permission
+if (permissions.includes('products.view')) {
+  // Show product features
+}
+```
+
+## Permission Groups Component
+
+The `PermissionGroup` component displays permissions organized by module:
+
+```tsx
+// src/pages/Roles/components/PermissionGroup.tsx:11-28
+export const PermissionGroup = ({ moduleName, permissions, selectedPermissions, onTogglePermission, onToggleModule }) => {
+  const allSelected = permissions.every(p => selectedPermissions.includes(p.id));
+  const someSelected = permissions.some(p => selectedPermissions.includes(p.id));
+  
+  return (
+    <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
+      <FormControlLabel
+        control={
+          <Checkbox
+            checked={allSelected}
+            indeterminate={someSelected && !allSelected}
+            onChange={() => onToggleModule(moduleName, permissions)}
+          />
+        }
+        label={<Typography variant="subtitle1" fontWeight="bold">{moduleName}</Typography>}
+      />
+      {/* Individual permission checkboxes */}
+    </Paper>
+  );
+};
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Permission Naming" icon="tag">
+    Use consistent naming: `module.action` pattern (e.g., `users.view`, `products.create`)
+  </Card>
+  
+  <Card title="Granular Permissions" icon="sliders">
+    Create specific permissions for different actions (view, create, edit, delete) rather than broad access
+  </Card>
+  
+  <Card title="Module Grouping" icon="folder">
+    Group related permissions under the same module for easier management
+  </Card>
+  
+  <Card title="Role Hierarchy" icon="sitemap">
+    Design roles from least to most privileged (e.g., Viewer → Editor → Admin)
+  </Card>
+</CardGroup>
+
+## Common Workflows
+
+### Adding a New Protected Feature
+
+1. **Create Permission**: Use Permissions Manager to add a new permission slug
+2. **Update MenuSidebar**: Add the permission to the relevant menu item in `src/core/MenuSidebar.tsx`
+3. **Protect Routes**: Ensure the route uses `ProtectedRoute` with the permission check
+4. **Update Roles**: Assign the new permission to appropriate roles
+
+### Modifying User Access
+
+1. Navigate to Roles page (`/roles`)
+2. Edit the user's assigned role
+3. Toggle permissions as needed
+4. Save the role - changes apply immediately to all users with that role
+
+<Note>
+Users must log out and log back in for permission changes to take effect, as permissions are cached in the auth store during login.
+</Note>

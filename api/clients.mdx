@@ -1,0 +1,394 @@
+---
+title: Clients
+description: API endpoints for managing clients and client details
+---
+
+## Clients
+
+### List All Clients
+
+<RequestExample>
+```bash GET /client
+curl -X GET "${VITE_BASE_URL}/client" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Retrieves a list of all clients.
+
+**Authentication Required:** Yes
+
+### Response
+
+<ResponseField name="data" type="array">
+  Array of client objects
+  
+  <ResponseField name="id" type="number">
+    Client unique identifier
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    Client name or business name
+  </ResponseField>
+  
+  <ResponseField name="email" type="string">
+    Client email address
+  </ResponseField>
+  
+  <ResponseField name="phone" type="string">
+    Client phone number
+  </ResponseField>
+  
+  <ResponseField name="rfc" type="string">
+    RFC (Tax ID) for Mexican clients
+  </ResponseField>
+  
+  <ResponseField name="address" type="string">
+    Client address
+  </ResponseField>
+  
+  <ResponseField name="created_at" type="string">
+    Creation timestamp
+  </ResponseField>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "Empresa XYZ S.A. de C.V.",
+      "email": "contacto@empresaxyz.com",
+      "phone": "+52 55 1234 5678",
+      "rfc": "EXY980101ABC",
+      "address": "Av. Reforma 123, CDMX",
+      "created_at": "2024-01-15T10:30:00Z"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+### Get Client by ID
+
+<RequestExample>
+```bash GET /client/{id}
+curl -X GET "${VITE_BASE_URL}/client/1" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Retrieves a single client by ID.
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Client ID
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="number">
+  Client unique identifier
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Client name
+</ResponseField>
+
+<ResponseField name="email" type="string">
+  Client email
+</ResponseField>
+
+<ResponseField name="phone" type="string">
+  Client phone
+</ResponseField>
+
+<ResponseField name="rfc" type="string">
+  RFC (Tax ID)
+</ResponseField>
+
+<ResponseField name="address" type="string">
+  Client address
+</ResponseField>
+
+<ResponseField name="regimen_fiscal_id" type="number">
+  Tax regime ID
+</ResponseField>
+
+<ResponseField name="cfdi_id" type="number">
+  CFDI use ID
+</ResponseField>
+
+<ResponseField name="client_data" type="array">
+  Additional client details
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "id": 1,
+  "name": "Empresa XYZ S.A. de C.V.",
+  "email": "contacto@empresaxyz.com",
+  "phone": "+52 55 1234 5678",
+  "rfc": "EXY980101ABC",
+  "address": "Av. Reforma 123, CDMX",
+  "regimen_fiscal_id": 601,
+  "cfdi_id": "G03",
+  "client_data": [
+    {
+      "id": 1,
+      "key": "industry",
+      "value": "Retail"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+### Create Client
+
+<RequestExample>
+```bash POST /client
+curl -X POST "${VITE_BASE_URL}/client" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "New Client Company",
+    "email": "client@example.com",
+    "phone": "+52 55 9876 5432",
+    "rfc": "NCO240101XYZ",
+    "address": "Calle Principal 456",
+    "regimen_fiscal_id": 601,
+    "cfdi_id": "G03"
+  }'
+```
+</RequestExample>
+
+Creates a new client.
+
+**Authentication Required:** Yes
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Client name or business name
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  Client email address
+</ParamField>
+
+<ParamField body="phone" type="string">
+  Client phone number
+</ParamField>
+
+<ParamField body="rfc" type="string">
+  RFC (Tax ID) for Mexican clients
+</ParamField>
+
+<ParamField body="address" type="string">
+  Client address
+</ParamField>
+
+<ParamField body="regimen_fiscal_id" type="number">
+  Tax regime ID
+</ParamField>
+
+<ParamField body="cfdi_id" type="string">
+  CFDI use code
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="number">
+  Created client ID
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success message
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "id": 42,
+  "message": "Client created successfully"
+}
+```
+</ResponseExample>
+
+---
+
+### Update Client
+
+<RequestExample>
+```bash PUT /client/{id}
+curl -X PUT "${VITE_BASE_URL}/client/1" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Updated Client Name",
+    "email": "newemail@example.com"
+  }'
+```
+</RequestExample>
+
+Updates an existing client.
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Client ID to update
+</ParamField>
+
+### Request Body
+
+Same fields as Create Client (all optional for updates)
+
+---
+
+### Delete Client
+
+<RequestExample>
+```bash DELETE /client/{id}
+curl -X DELETE "${VITE_BASE_URL}/client/1" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Deletes a client.
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Client ID to delete
+</ParamField>
+
+---
+
+## Client Details
+
+### List All Client Details
+
+<RequestExample>
+```bash GET /client_data
+curl -X GET "${VITE_BASE_URL}/client_data" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Retrieves all client detail records (custom key-value pairs).
+
+**Authentication Required:** Yes
+
+---
+
+### Get Client Detail by ID
+
+<RequestExample>
+```bash GET /client_data/{id}
+curl -X GET "${VITE_BASE_URL}/client_data/1" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Retrieves a specific client detail record.
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Client detail record ID
+</ParamField>
+
+---
+
+### Create Client Detail
+
+<RequestExample>
+```bash POST /client_data
+curl -X POST "${VITE_BASE_URL}/client_data" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "client_id": 1,
+    "key": "payment_terms",
+    "value": "Net 30"
+  }'
+```
+</RequestExample>
+
+Creates a new client detail record.
+
+**Authentication Required:** Yes
+
+### Request Body
+
+<ParamField body="client_id" type="number" required>
+  Client ID this detail belongs to
+</ParamField>
+
+<ParamField body="key" type="string" required>
+  Detail key (e.g., "industry", "payment_terms")
+</ParamField>
+
+<ParamField body="value" type="string" required>
+  Detail value
+</ParamField>
+
+---
+
+### Update Client Detail
+
+<RequestExample>
+```bash PUT /client_data/{id}
+curl -X PUT "${VITE_BASE_URL}/client_data/1" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"value": "Net 60"}'
+```
+</RequestExample>
+
+Updates an existing client detail record.
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Client detail record ID
+</ParamField>
+
+---
+
+### Delete Client Detail
+
+<RequestExample>
+```bash DELETE /client_data/{id}
+curl -X DELETE "${VITE_BASE_URL}/client_data/1" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Deletes a client detail record.
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Client detail record ID to delete
+</ParamField>

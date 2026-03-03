@@ -1,0 +1,312 @@
+---
+title: Authentication System
+description: JWT-based authentication with role-based permissions for secure access control
+---
+
+MKing Admin uses a JWT-based authentication system with granular role-based permissions to secure your admin dashboard.
+
+## Overview
+
+The authentication system provides:
+
+- **JWT Token Authentication** - Secure token-based authentication with Bearer tokens
+- **Role-Based Access Control (RBAC)** - Fine-grained permission management
+- **Protected Routes** - Automatic redirection for unauthorized access
+- **Persistent Sessions** - Token storage in localStorage for session persistence
+
+## Login Workflow
+
+<Steps>
+  <Step title="User enters credentials">
+    The login form validates email and password with real-time validation using `react-hook-form`.
+  </Step>
+  
+  <Step title="API authentication">
+    Credentials are sent to the `/login` endpoint. The server validates and returns a JWT token.
+  </Step>
+  
+  <Step title="Fetch user data">
+    After successful login, the app fetches the user's profile and permissions using the `/user` endpoint.
+  </Step>
+  
+  <Step title="Store authentication state">
+    The JWT token is stored in localStorage, and user data with permissions are stored in Zustand state management.
+  </Step>
+</Steps>
+
+## Implementation
+
+### Login Component
+
+The login page (`src/auth/pages/LoginPage.tsx:11`) uses Material-UI and react-hook-form for a robust authentication experience:
+
+```tsx
+import { useForm } from "react-hook-form";
+import { LoginService, getInfoUser } from "../../services/service";
+import { useAuthStore } from "../../store/authStore";
+
+const { register, handleSubmit, formState: { errors, isValid } } = useForm({
+  mode: "all",
+});
+
+const onSubmit = (data) => {
+  if (isValid) {
+    const toastId = toast.loading("Iniciando sesión...");
+    LoginService(data)
+      .then(async (res) => {
+        const token = res.data.token;
+        localStorage.setItem("token", token);
+        
+        // Fetch user profile and permissions
+        const { data: userData } = await getInfoUser();
+        const perms = userData.roles.flatMap((role) =>
+          role.permissions.map((p) => p.slug)
+        );
+        
+        setAuth(userData, perms);
+        window.location.href = "/home";
+      })
+      .catch((err) => {
+        toast.error("Credenciales incorrectas o error de servidor");
+      });
+  }
+};
+```
+
+### Form Validation
+
+The login form includes comprehensive validation rules (`src/auth/pages/LoginPage.tsx:76-105`):
+
+```tsx
+<TextField
+  label="Correo"
+  type="email"
+  placeholder="ejemplo@devdul.mx"
+  fullWidth
+  {...register("email", {
+    required: "El correo es obligatorio",
+    pattern: {
+      value: /^[^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*@(\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,})$/,
+      message: "El correo debe ser válido",
+    },
+  })}
+/>
+
+<TextField
+  label="Contraseña"
+  type="password"
+  placeholder="Contraseña"
+  fullWidth
+  {...register("password", {
+    required: "La contraseña es obligatoria",
+    minLength: {
+      value: 4,
+      message: "La contraseña debe de ser más de 4 caracteres",
+    },
+  })}
+/>
+```
+
+## API Integration
+
+### Authentication Service
+
+The authentication service (`src/services/service.tsx:46`) handles API requests with axios:
+
+```tsx
+import axios from "axios";
+
+const apiUrl = import.meta.env.VITE_BASE_URL;
+
+// Login endpoint
+export const LoginService = (body) => 
+  axios.post(`${apiUrl}/login`, body);
+
+// Get authenticated user info
+export const getInfoUser = () => 
+  axios.get(`${apiUrl}/user`);
+```
+
+### Axios Interceptors
+
+All API requests automatically include the JWT token via axios interceptors (`src/services/service.tsx:7-27`):
+
+```tsx
+axios.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers["Authorization"] = "Bearer " + token;
+    }
+    return config;
+  },
+  function (error) {
+    return Promise.reject(error);
+  }
+);
+```
+
+### Response Error Handling
+
+Global error handling for authentication failures (`src/services/service.tsx:35-44`):
+
+```tsx
+axios.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    const status = err.response.status;
+    Response(status); // Custom error handler
+    return Promise.reject(err);
+  }
+);
+```
+
+## State Management
+
+### Auth Slice (Redux)
+
+The application uses Redux Toolkit for authentication state (`src/store/auth/authSlice.tsx:3-29`):
+
+```tsx
+import { createSlice } from "@reduxjs/toolkit";
+
+export const authSlice = createSlice({
+  name: "auth",
+  initialState: {
+    status: "not-authenticated", // 'checking', 'not-authenticated', 'authenticated'
+    fullname: null,
+    permissions: [],
+  },
+  reducers: {
+    login: (state, { payload }) => {
+      state.status = "authenticated";
+      state.fullname = payload.name;
+      state.permissions = payload.permisos;
+    },
+    logout: (state) => {
+      state.status = "not-authenticated";
+      state.fullname = null;
+      state.permissions = [];
+    },
+    checkingCredentials: (state) => {
+      state.status = "checking";
+    },
+  },
+});
+
+export const { login, logout, checkingCredentials } = authSlice.actions;
+```
+
+## Role-Based Permissions
+
+### Permission Structure
+
+Permissions are extracted from user roles and stored as slugs:
+
+```tsx
+const { data: userData } = await getInfoUser();
+
+// Extract permission slugs from all assigned roles
+const perms = userData.roles.flatMap((role) =>
+  role.permissions.map((p) => p.slug)
+);
+
+setAuth(userData, perms);
+```
+
+### Example Permission Check
+
+```tsx
+const userPermissions = useAuthStore((state) => state.permissions);
+
+const canEditProducts = userPermissions.includes('products.edit');
+const canDeleteProducts = userPermissions.includes('products.delete');
+
+if (canEditProducts) {
+  // Show edit button
+}
+```
+
+## Security Best Practices
+
+<Warning>
+  Never store sensitive data in localStorage in production. Consider using httpOnly cookies for enhanced security.
+</Warning>
+
+<Note>
+  The JWT token includes an expiration time. Implement token refresh logic for long-running sessions.
+</Note>
+
+### Token Storage
+
+```tsx
+// Store token
+localStorage.setItem("token", token);
+
+// Retrieve token
+const token = localStorage.getItem("token");
+
+// Clear on logout
+localStorage.removeItem("token");
+```
+
+### Logout Implementation
+
+```tsx
+const handleLogout = () => {
+  // Clear token
+  localStorage.removeItem("token");
+  
+  // Reset auth state
+  dispatch(logout());
+  
+  // Redirect to login
+  navigate("/login");
+};
+```
+
+## User Feedback
+
+The authentication flow provides real-time user feedback using react-toastify:
+
+```tsx
+import { toast } from "react-toastify";
+
+// Loading state
+const toastId = toast.loading("Iniciando sesión...");
+
+// Success
+toast.update(toastId, {
+  render: "¡Bienvenido!",
+  type: "success",
+  isLoading: false,
+  autoClose: 2000,
+});
+
+// Error
+toast.update(toastId, {
+  render: "Credenciales incorrectas o error de servidor",
+  type: "error",
+  isLoading: false,
+  autoClose: 3000,
+});
+```
+
+## Environment Configuration
+
+Configure your API endpoint in `.env`:
+
+```bash
+VITE_BASE_URL=https://api.yourdomain.com
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Employee Management" icon="users" href="/features/employees">
+    Learn how to manage employee accounts with role assignments
+  </Card>
+  <Card title="Roles & Permissions" icon="shield-halved" href="/user-management/roles-permissions">
+    Configure roles and granular permissions
+  </Card>
+</CardGroup>

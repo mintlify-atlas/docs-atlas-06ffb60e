@@ -1,0 +1,273 @@
+---
+title: Project Structure
+description: Overview of the MKing Admin project folder structure and organization
+---
+
+The MKing Admin application follows a feature-based architecture with clear separation of concerns. This page details the project's folder structure and the purpose of each directory.
+
+## Root Directory Structure
+
+```
+src/
+├── assets/          # Static assets (icons, images, CSS)
+├── auth/            # Authentication feature module
+├── core/            # Core application components
+├── home/            # Home page module
+├── pages/           # Feature pages and components
+├── router/          # Routing configuration
+├── services/        # API service layer
+├── store/           # State management
+├── theme/           # Theme configuration
+├── utils/           # Utility functions and components
+├── Main.tsx         # Application entry point
+└── vitest.setup.ts  # Test configuration
+```
+
+## Directory Breakdown
+
+<Accordion title="assets/">
+  Contains all static resources used throughout the application.
+
+  ```
+  assets/
+  ├── css/        # Global stylesheets
+  ├── icons/      # Icon components (e.g., Error404Icon.tsx)
+  └── images/     # Image assets
+  ```
+
+  **Purpose**: Centralized location for all static resources, making asset management easier.
+</Accordion>
+
+<Accordion title="auth/">
+  Authentication feature module with complete authentication flow.
+
+  ```
+  auth/
+  ├── layout/     # AuthLayout.tsx - Layout wrapper for auth pages
+  ├── pages/      # LoginPage.tsx and other auth pages
+  └── routes/     # AuthRoutes.tsx - Auth-specific routes
+  ```
+
+  **Key Files**:
+  - `pages/LoginPage.tsx`: Main login interface
+  - `layout/AuthLayout.tsx`: Layout wrapper for authentication pages
+  - `routes/AuthRoutes.tsx`: Route definitions for authentication flow
+</Accordion>
+
+<Accordion title="core/">
+  Core application components that are used across the entire application.
+
+  ```
+  core/
+  ├── GrantiaApp.tsx  # Main app component
+  ├── MenuSidebar.tsx # Sidebar menu configuration
+  └── DrawerPage.tsx  # Drawer component
+  ```
+
+  **MenuSidebar.tsx**: Central configuration file that defines all available pages, their routes, permissions, and sidebar menu items.
+
+  ```tsx
+  export const MenuSidebar = [
+    {
+      id: 1,
+      title: "Principal",
+      text_menu: "Home",
+      icon: <HomeIcon />,
+      path: "/home",
+      permission: "home.panel",
+      page: <HomePage />
+    },
+    // ... more menu items
+  ];
+  ```
+</Accordion>
+
+<Accordion title="pages/">
+  Feature-based page modules. Each feature has its own directory with components, logic, and tests.
+
+  ```
+  pages/
+  ├── Calendar/
+  │   ├── Calendar.tsx
+  │   └── EventModal.tsx
+  ├── Employees/
+  │   ├── EmployeesPage.tsx
+  │   └── components/
+  │       └── EmployeeFormDialog.tsx
+  ├── Product/
+  │   ├── ProductPage.tsx
+  │   └── components/
+  │       ├── FormProduct.tsx
+  │       ├── ImageUploader.tsx
+  │       └── InventoryModal.tsx
+  ├── Quotations/
+  │   ├── AdminQuotationList.tsx
+  │   └── CreateAdminQuotation.tsx
+  ├── Roles/
+  │   ├── RolesPage.tsx
+  │   ├── CreateRole.tsx
+  │   └── components/
+  │       ├── PermissionGroup.tsx
+  │       └── PermissionsManager.tsx
+  ├── Users/
+  │   └── UsersPage.tsx
+  ├── catalogs/
+  │   └── CatalogPage.tsx
+  └── client/
+      ├── ClientPage.tsx
+      └── components/
+          ├── FormClient.tsx
+          └── FormClient.test.tsx
+  ```
+
+  **Organization Pattern**:
+  - Each feature has a main page component (e.g., `ProductPage.tsx`)
+  - Feature-specific components go in a `components/` subdirectory
+  - Tests are co-located with the components they test
+</Accordion>
+
+<Accordion title="router/">
+  Routing configuration and protected route logic.
+
+  ```
+  router/
+  ├── AppRouter.tsx      # Main routing configuration
+  └── ProtectedRoute.tsx # Route protection wrapper
+  ```
+
+  See [Routing](/development/routing) for detailed documentation.
+</Accordion>
+
+<Accordion title="services/">
+  API service layer for backend communication.
+
+  ```
+  services/
+  ├── admin.service.tsx   # Admin-related API calls
+  ├── ecomme.service.tsx  # E-commerce API calls
+  ├── event.service.ts    # Event/calendar API calls
+  ├── service.tsx         # Core service utilities
+  └── index.tsx           # Service exports
+  ```
+
+  **Purpose**: Centralized API logic separate from components, making it easier to maintain and test.
+</Accordion>
+
+<Accordion title="store/">
+  State management using both Redux Toolkit and Zustand.
+
+  ```
+  store/
+  ├── auth/
+  │   ├── authSlice.tsx  # Redux auth slice
+  │   ├── thunks.tsx     # Async auth actions
+  │   └── index.tsx      # Auth exports
+  ├── authStore.ts       # Zustand auth store
+  ├── pageTitleStore.ts  # Zustand page title store
+  ├── store.tsx          # Redux store configuration
+  └── index.tsx          # Store exports
+  ```
+
+  See [State Management](/development/state-management) for detailed documentation.
+</Accordion>
+
+<Accordion title="theme/">
+  Application theme and styling configuration.
+
+  ```
+  theme/
+  ├── AppTheme.tsx      # Main theme configuration
+  └── GarantiaTheme.tsx # Custom theme variants
+  ```
+
+  **Purpose**: Centralized theme management for consistent styling across the application.
+</Accordion>
+
+<Accordion title="utils/">
+  Utility functions and reusable components.
+
+  ```
+  utils/
+  └── ag-components/      # AG Grid custom components
+      ├── AgTooltip.tsx
+      ├── agFilter.tsx
+      ├── badgeCellRender.tsx
+      └── estatusRentas.tsx
+  ```
+
+  **Purpose**: Shared utilities and components that don't belong to a specific feature.
+</Accordion>
+
+## Feature Module Pattern
+
+The application follows a consistent pattern for organizing features:
+
+```
+feature-name/
+├── FeaturePage.tsx           # Main page component
+├── components/               # Feature-specific components
+│   ├── ComponentName.tsx
+│   └── ComponentName.test.tsx
+├── hooks/                    # Feature-specific hooks (if needed)
+└── types/                    # Feature-specific types (if needed)
+```
+
+### Benefits of this Pattern
+
+- **Modularity**: Each feature is self-contained and independent
+- **Scalability**: Easy to add new features without affecting existing ones
+- **Maintainability**: Related code is co-located, making it easier to understand and modify
+- **Testability**: Tests are close to the code they test
+
+## Entry Point
+
+The application bootstraps in `Main.tsx`:
+
+```tsx src/Main.tsx
+import ReactDOM from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
+import { MKingApp } from "./core/GrantiaApp";
+import { store } from "./store";
+
+const root = ReactDOM.createRoot(
+  document.getElementById("root") as HTMLAreaElement
+);
+
+root.render(
+  <BrowserRouter>
+    <MKingApp />
+  </BrowserRouter>
+);
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Feature-First Organization" icon="folder-tree">
+    Group files by feature rather than by type. Keep related components, hooks, and utilities together.
+  </Card>
+  
+  <Card title="Consistent Naming" icon="tag">
+    Use PascalCase for components (e.g., `ProductPage.tsx`) and camelCase for utilities (e.g., `formatDate.ts`).
+  </Card>
+  
+  <Card title="Co-locate Tests" icon="flask">
+    Keep test files next to the components they test for better discoverability.
+  </Card>
+  
+  <Card title="Barrel Exports" icon="box">
+    Use `index.ts` files to create clean public APIs for each module.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="State Management" icon="database" href="/development/state-management">
+    Learn about Redux and Zustand state management patterns
+  </Card>
+  
+  <Card title="Routing" icon="route" href="/development/routing">
+    Understand the routing system and protected routes
+  </Card>
+</CardGroup>

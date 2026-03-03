@@ -1,0 +1,707 @@
+---
+title: Client Management (CRM)
+description: Comprehensive client relationship management with fiscal information, addresses, and contact details
+---
+
+Manage your client database with complete contact information, fiscal data for invoicing, and personalized profile images.
+
+## Overview
+
+The client management system provides:
+
+- **Complete Client Profiles** - Name, email, contact information, and profile images
+- **Fiscal Information** - RFC, business name, tax regime, and CFDI usage for Mexican invoicing
+- **Address Management** - Complete address details for shipping and billing
+- **Dual Mode Support** - Manage both individual clients (persona física) and businesses (persona moral)
+- **Dynamic Validation** - Tax regime filtering based on CFDI usage
+- **Real-time Grid** - Fast filtering and searching with AG Grid
+
+## Client List View
+
+The main client page (`src/pages/client/ClientPage.tsx:15`) displays all clients in an interactive data grid:
+
+### Grid Features
+
+```tsx
+const columnDefs = [
+  {
+    headerName: "Imagen",
+    field: "clientDetails",
+    cellRenderer: (params) => {
+      const details = params.value;
+      const imageUrl = details?.[0]?.img_client;
+      
+      if (!imageUrl) {
+        return (
+          <div style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            backgroundColor: '#eee',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            N/A
+          </div>
+        );
+      }
+      
+      return (
+        <img
+          src={imageUrl}
+          alt="Cliente"
+          style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            objectFit: 'cover'
+          }}
+        />
+      );
+    }
+  },
+  {
+    headerName: "Nombre",
+    field: "name",
+    cellStyle: { color: "blue", fontWeight: "bold", cursor: "pointer" },
+    cellRenderer: (params) => (
+      <span onClick={() => handleOpen(params.data)}>
+        {params.value}
+      </span>
+    ),
+  },
+  {
+    headerName: "Email",
+    field: "email",
+  },
+  {
+    headerName: "UUID",
+    field: "uuid",
+  },
+  {
+    headerName: "Estado",
+    field: "deletedAt",
+    cellRenderer: (params) => {
+      return params.data.deletedAt ? (
+        <Chip color="error" label="Eliminado" variant="outlined" />
+      ) : (
+        <Chip color="success" label="Activo" variant="outlined" />
+      );
+    }
+  }
+];
+```
+
+## Client Form Dialog
+
+The client form (`src/pages/client/components/FormClient.tsx:63`) provides comprehensive data entry organized in sections:
+
+### Form Sections
+
+<Steps>
+  <Step title="Basic Information">
+    Core client data: name, last name, email, and optional password for client portal access.
+  </Step>
+  
+  <Step title="Fiscal Details (Accordion)">
+    Tax information, address, and profile image - organized in a collapsible accordion for better UX.
+  </Step>
+</Steps>
+
+### Basic Information Fields
+
+The top section handles essential client data (`src/pages/client/components/FormClient.tsx:342-418`):
+
+```tsx
+<Box>
+  <Typography variant="h6" sx={{ mb: 2 }}>Datos Básicos</Typography>
+  
+  <Controller
+    name="name"
+    control={control}
+    render={({ field }) => (
+      <TextField
+        {...field}
+        label="Nombre"
+        error={!!errors.name}
+        helperText={errors.name?.message}
+        fullWidth
+        required
+      />
+    )}
+  />
+  
+  <Controller
+    name="lastName"
+    control={control}
+    render={({ field }) => (
+      <TextField
+        {...field}
+        label="Apellido"
+        fullWidth
+        required
+      />
+    )}
+  />
+  
+  <Controller
+    name="email"
+    control={control}
+    render={({ field }) => (
+      <TextField
+        {...field}
+        label="Email"
+        type="email"
+        error={!!errors.email}
+        helperText={errors.email?.message}
+        fullWidth
+        required
+      />
+    )}
+  />
+  
+  <Controller
+    name="password"
+    control={control}
+    render={({ field }) => (
+      <TextField
+        {...field}
+        label="Contraseña (Opcional)"
+        type="password"
+        helperText={
+          selectedClient 
+            ? "Déjala vacía si no deseas cambiarla" 
+            : "Dejar vacío si no se requiere contraseña"
+        }
+        fullWidth
+      />
+    )}
+  />
+</Box>
+```
+
+### Fiscal Details Accordion
+
+Collapsible section for tax and address information (`src/pages/client/components/FormClient.tsx:421-804`):
+
+The fiscal details section includes:
+
+**Tax Information:**
+- Phone (10 digits, numeric validation)
+- RFC (12-13 characters with format validation)
+- Business Name (Razón Social)
+- CFDI Usage (Use of CFDI for invoicing)
+- Tax Regime (Régimen Fiscal) - dynamically filtered based on CFDI selection
+- Person Type (Física/Moral)
+- Gender
+
+**Address:**
+- Street
+- Exterior/Interior Number
+- Postal Code (5 digits)
+- Neighborhood (Colonia)
+- Municipality (Municipio)
+- State (Estado)
+
+**Profile Image:**
+- Image upload with preview
+- Click to change existing image
+
+### Dynamic Tax Regime Filtering
+
+The tax regime (Régimen Fiscal) selector is automatically filtered based on the selected CFDI usage (`src/pages/client/components/FormClient.tsx:101-110`):
+
+```tsx
+const selectedCfdiCode = watch('cfdiUse');
+
+const filteredRegimens = regimens.filter(regimen => {
+  if (!selectedCfdiCode) return false;
+  
+  const selectedCfdi = allCfdis.find(c => c.code === selectedCfdiCode);
+  if (!selectedCfdi?.regimen_fiscal_receptor) return true;
+  
+  const allowedRegimens = selectedCfdi.regimen_fiscal_receptor
+    .split(',').map(r => r.trim());
+  
+  return allowedRegimens.includes(regimen.code);
+});
+```
+
+### CFDI and Tax Regime Selectors
+
+```tsx
+{/* CFDI Usage Selector */}
+<Controller
+  name="cfdiUse"
+  control={control}
+  render={({ field }) => (
+    <FormControl fullWidth>
+      <InputLabel>Uso de CFDI</InputLabel>
+      <Select {...field} value={field.value || ''}>
+        {allCfdis.map((item) => (
+          <MenuItem key={item.id} value={item.code}>
+            {item.code} - {item.description}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  )}
+/>
+
+{/* Tax Regime Selector - Filtered by CFDI */}
+<Controller
+  name="taxRegime"
+  control={control}
+  render={({ field }) => (
+    <FormControl fullWidth>
+      <InputLabel>Régimen Fiscal</InputLabel>
+      <Select 
+        {...field} 
+        value={field.value || ''}
+        disabled={!selectedCfdiCode} // Disabled until CFDI is selected
+      >
+        {filteredRegimens.map((item) => (
+          <MenuItem key={item.id} value={item.code}>
+            {item.code} - {item.description}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  )}
+/>
+```
+
+### Phone Number Validation
+
+Numeric-only input with 10-digit validation (`src/pages/client/components/FormClient.tsx:433-462`):
+
+```tsx
+<Controller
+  name="phone"
+  control={control}
+  rules={{
+    pattern: {
+      value: /^[0-9]{10}$/,
+      message: "El teléfono debe tener 10 dígitos numéricos"
+    }
+  }}
+  render={({ field: { onChange, value, ...field } }) => (
+    <TextField
+      {...field}
+      value={value || ''}
+      onChange={(e) => {
+        const val = e.target.value;
+        // Only allow numeric input, max 10 digits
+        if (val === '' || (/^[0-9]+$/.test(val) && val.length <= 10)) {
+          onChange(val);
+        }
+      }}
+      label="Teléfono"
+      error={!!errors.phone}
+      helperText={errors.phone?.message}
+      inputProps={{ maxLength: 10, inputMode: 'numeric' }}
+    />
+  )}
+/>
+```
+
+### RFC and Postal Code Validation
+
+```tsx
+{/* RFC - 12-13 characters */}
+<TextField
+  label="RFC"
+  value={formData.rfc}
+  onChange={(e) => handleChange('rfc', e.target.value.toUpperCase())}
+  error={!!errors.rfc}
+  helperText={errors.rfc?.message}
+  inputProps={{ maxLength: 13 }}
+/>
+
+{/* Postal Code - 5 numeric digits */}
+<Controller
+  name="postalCode"
+  control={control}
+  rules={{
+    pattern: {
+      value: /^[0-9]{5}$/,
+      message: "El código postal debe tener 5 dígitos numéricos"
+    }
+  }}
+  render={({ field: { onChange, value, ...field } }) => (
+    <TextField
+      {...field}
+      value={value || ''}
+      onChange={(e) => {
+        const val = e.target.value;
+        if (val === '' || (/^[0-9]+$/.test(val) && val.length <= 5)) {
+          onChange(val);
+        }
+      }}
+      label="Código Postal"
+      error={!!errors.postalCode}
+      helperText={errors.postalCode?.message}
+      inputProps={{ maxLength: 5, inputMode: 'numeric' }}
+    />
+  )}
+/>
+```
+
+### Image Upload with Preview
+
+Profile image uploader with preview and change functionality (`src/pages/client/components/FormClient.tsx:712-800`):
+
+```tsx
+<Controller
+  name="imgClient"
+  control={control}
+  render={({ field: { onChange, value, ...field } }) => (
+    <Box>
+      <input
+        accept="image/*"
+        type="file"
+        id="icon-button-file"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onChange(file);
+        }}
+      />
+      <label htmlFor="icon-button-file" style={{ cursor: 'pointer' }}>
+        <Box
+          sx={{
+            border: '2px dashed #ccc',
+            borderRadius: 2,
+            p: 2,
+            textAlign: 'center',
+            backgroundColor: '#fafafa',
+            '&:hover': {
+              borderColor: '#1976d2',
+              backgroundColor: '#f0f7ff'
+            },
+            minHeight: '200px'
+          }}
+        >
+          {value || clientDetails?.imageUrl ? (
+            <Box sx={{ position: 'relative' }}>
+              <img
+                src={
+                  value instanceof File
+                    ? URL.createObjectURL(value)
+                    : value || clientDetails?.imageUrl
+                }
+                alt="Cliente"
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '200px',
+                  objectFit: 'contain',
+                  borderRadius: '8px'
+                }}
+              />
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: -10,
+                  bgcolor: 'rgba(0,0,0,0.6)',
+                  color: 'white',
+                  px: 2,
+                  py: 0.5,
+                  borderRadius: 4
+                }}
+              >
+                Clic para cambiar
+              </Box>
+            </Box>
+          ) : (
+            <>
+              <img
+                src="https://cdn-icons-png.flaticon.com/512/1040/1040241.png"
+                alt="Upload"
+                style={{ width: 64, opacity: 0.5 }}
+              />
+              <Typography color="textSecondary">
+                Clic para subir imagen del cliente
+              </Typography>
+            </>
+          )}
+        </Box>
+      </label>
+    </Box>
+  )}
+/>
+```
+
+## Form Validation
+
+Comprehensive validation for all client data (`src/pages/client/components/FormClient.tsx:32-54`):
+
+```tsx
+const validateForm = (data, isEditing = false) => {
+  const errors = {};
+  
+  // Basic validation
+  if (!data.name) errors.name = 'El nombre es requerido';
+  if (!data.email) errors.email = 'El email es requerido';
+  
+  // Email format
+  if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+    errors.email = 'El email no es válido';
+  }
+  
+  // RFC validation (12-13 characters)
+  if (data.rfc && data.rfc.length < 12) {
+    errors.rfc = 'El RFC debe tener al menos 12 caracteres';
+  }
+  if (data.rfc && data.rfc.length > 13) {
+    errors.rfc = 'El RFC no debe exceder 13 caracteres';
+  }
+  
+  // Postal code validation (5 digits)
+  if (data.postalCode && data.postalCode.length !== 5) {
+    errors.postalCode = 'El código postal debe tener 5 dígitos';
+  }
+  
+  return errors;
+};
+```
+
+## Saving Clients
+
+The form handles both client creation and fiscal detail updates (`src/pages/client/components/FormClient.tsx:218-315`):
+
+```tsx
+const onSubmit = async (data) => {
+  // Validate
+  const validationErrors = validateForm(data, !!selectedClient);
+  if (Object.keys(validationErrors).length > 0) {
+    Object.entries(validationErrors).forEach(([key, message]) => {
+      setError(key, { type: 'manual', message });
+    });
+    return;
+  }
+  
+  setSaving(true);
+  try {
+    let clientId;
+    
+    // Create or update client
+    if (selectedClient) {
+      const updateData = {
+        name: data.name,
+        lastName: data.lastName,
+        email: data.email,
+      };
+      // Only include password if provided
+      if (data.password?.trim()) {
+        updateData.password = data.password;
+      }
+      const clientRes = await updateClient(selectedClient.id, updateData);
+      clientId = clientRes.data.id;
+    } else {
+      const createData = {
+        name: data.name,
+        lastName: data.lastName,
+        email: data.email,
+      };
+      if (data.password?.trim()) {
+        createData.password = data.password;
+      }
+      const clientRes = await saveClient(createData);
+      clientId = clientRes.data.id;
+    }
+    
+    // Prepare fiscal details
+    const detailData = {
+      clientId: clientId,
+      phone: data.phone || '',
+      email: data.email,
+      rfc: data.rfc || '',
+      businessName: data.businessName || '',
+      taxRegime: data.taxRegime || '',
+      cfdiUse: data.cfdiUse || '',
+      street: data.street || '',
+      exteriorNumber: data.exteriorNumber || '',
+      interiorNumber: data.interiorNumber || '',
+      neighborhood: data.neighborhood || '',
+      municipality: data.municipality || '',
+      state: data.state || '',
+      postalCode: data.postalCode || '',
+      gender: data.gender || undefined,
+      personType: data.person_type || 'persona fisica',
+      regimenFiscalId: regimens.find(r => r.code === data.taxRegime)?.id,
+      cfdiId: allCfdis.find(c => c.code === data.cfdiUse)?.id
+    };
+    
+    // Use FormData if image is included
+    const hasImage = data.imgClient instanceof File;
+    if (hasImage || clientDetailId) {
+      const formData = new FormData();
+      Object.keys(detailData).forEach(key => {
+        if (detailData[key] !== undefined && detailData[key] !== '') {
+          formData.append(key, detailData[key]);
+        }
+      });
+      if (hasImage) {
+        formData.append('imgClient', data.imgClient);
+      }
+      
+      if (clientDetailId) {
+        await updateClientDetail(clientDetailId, formData);
+      } else {
+        await saveClientDetail(formData);
+      }
+    } else {
+      await saveClientDetail(detailData);
+    }
+    
+    toast.success(
+      selectedClient 
+        ? 'Cliente actualizado exitosamente' 
+        : 'Cliente guardado exitosamente'
+    );
+    handleSave?.({ id: clientId, ...data });
+    onClose();
+  } catch (error) {
+    toast.error('Ocurrió un error al guardar el cliente');
+  } finally {
+    setSaving(false);
+  }
+};
+```
+
+## Loading Client Data
+
+When editing, the form loads both client and fiscal details (`src/pages/client/components/FormClient.tsx:128-189`):
+
+```tsx
+useEffect(() => {
+  if (open && selectedClient?.id) {
+    setLoadingClient(true);
+    getClient(selectedClient.id)
+      .then(res => {
+        const client = res.data;
+        reset({
+          name: client.name || '',
+          lastName: client.last_name || '',
+          email: client.email || '',
+          password: '', // Never load password for security
+        });
+        
+        // Load client details (fiscal info)
+        getClientDetails()
+          .then((detailsRes) => {
+            const allDetails = detailsRes.data;
+            const clientDetail = allDetails.find(
+              detail => detail.clientId === client.id
+            );
+            
+            if (clientDetail) {
+              setClientDetails(clientDetail);
+              setClientDetailId(clientDetail.id);
+              reset({
+                ...client,
+                password: '',
+                phone: clientDetail.phone || '',
+                rfc: clientDetail.rfc || '',
+                businessName: clientDetail.business_name || '',
+                taxRegime: clientDetail.tax_regime || '',
+                cfdiUse: clientDetail.cfdi_use || '',
+                street: clientDetail.street || '',
+                exteriorNumber: clientDetail.exterior_number || '',
+                postalCode: clientDetail.postal_code || '',
+                gender: clientDetail.gender || undefined,
+                imgClient: clientDetail.img_client || undefined,
+                person_type: clientDetail.person_type || 'persona fisica',
+              });
+            }
+          });
+      })
+      .finally(() => setLoadingClient(false));
+  }
+}, [open, selectedClient]);
+```
+
+## API Service Methods
+
+Client management API endpoints (`src/services/admin.service.tsx:74-102`):
+
+```tsx
+// Client CRUD
+export const getClients = async () => 
+  await axios.get(`${apiUrl}/client`);
+
+export const getClient = async (id) => 
+  await axios.get(`${apiUrl}/client/${id}`);
+
+export const saveClient = async (body) => 
+  await axios.post(`${apiUrl}/client`, body);
+
+export const updateClient = async (id, body) => 
+  await axios.put(`${apiUrl}/client/${id}`, body);
+
+export const delClient = async (id) => 
+  await axios.delete(`${apiUrl}/client/${id}`);
+
+// Client Details (Fiscal Info)
+export const getClientDetails = async () => 
+  await axios.get(`${apiUrl}/client_data`);
+
+export const saveClientDetail = async (body) => 
+  await axios.post(`${apiUrl}/client_data`, body);
+
+export const updateClientDetail = async (id, body) => 
+  await axios.put(`${apiUrl}/client_data/${id}`, body);
+
+// Catalogs for Mexican invoicing
+export const getRegimenFiscal = async () => 
+  await axios.get(`${apiUrl}/regimen_fiscal`);
+
+export const getCfdi = async () => 
+  await axios.get(`${apiUrl}/cfdi`);
+```
+
+## Delete Client
+
+Client deletion with confirmation (`src/pages/client/ClientPage.tsx:71-95`):
+
+```tsx
+const handleDelete = (client) => {
+  Swal.fire({
+    title: '¿Estás seguro?',
+    text: `¿Deseas eliminar el cliente ${client.name}?`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Sí, eliminar',
+    cancelButtonText: 'Cancelar',
+  }).then((result) => {
+    if (result.isConfirmed) {
+      delClient(client.id)
+        .then(res => {
+          setRowData(prevData => 
+            prevData.filter(item => item.id !== client.id)
+          );
+          toast.success('Cliente eliminado correctamente');
+        })
+        .catch(err => {
+          toast.error('Ocurrió un error al borrar el cliente');
+        });
+    }
+  });
+};
+```
+
+<Info>
+  The client management system is designed for Mexican businesses and includes full support for SAT (Servicio de Administración Tributaria) requirements including RFC, CFDI, and tax regime validation.
+</Info>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quotations" icon="file-invoice" href="/features/quotations">
+    Create quotations for your clients
+  </Card>
+  <Card title="Catalogs" icon="receipt" href="/configuration/catalogs">
+    Manage fiscal catalogs (CFDI, Tax Regimes)
+  </Card>
+</CardGroup>
