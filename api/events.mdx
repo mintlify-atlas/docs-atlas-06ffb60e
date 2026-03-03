@@ -1,0 +1,308 @@
+---
+title: Calendar Events
+description: API endpoints for managing calendar events
+---
+
+Calendar events are used for scheduling appointments, birthdays, and other important dates in the MKing Admin dashboard.
+
+## Event Object
+
+<ResponseField name="id" type="string">
+  Unique identifier for the event
+</ResponseField>
+
+<ResponseField name="title" type="string" required>
+  Event title
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Event description or notes
+</ResponseField>
+
+<ResponseField name="start" type="string | Date" required>
+  Event start date/time (ISO 8601 format)
+</ResponseField>
+
+<ResponseField name="end" type="string | Date" required>
+  Event end date/time (ISO 8601 format)
+</ResponseField>
+
+<ResponseField name="allDay" type="boolean">
+  Whether the event is an all-day event (default: false)
+</ResponseField>
+
+<ResponseField name="color" type="string">
+  Event color for calendar display (hex color code)
+</ResponseField>
+
+<ResponseField name="display" type="string">
+  Display mode for the event (e.g., "auto", "block", "background")
+</ResponseField>
+
+## List Events
+
+<RequestExample>
+```bash GET /events
+curl -X GET "${VITE_BASE_URL}/events?start=2024-01-01&end=2024-12-31" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Retrieves all calendar events within an optional date range.
+
+**Authentication Required:** Yes
+
+### Query Parameters
+
+<ParamField query="start" type="string">
+  Start date for filtering events (ISO 8601 format)
+</ParamField>
+
+<ParamField query="end" type="string">
+  End date for filtering events (ISO 8601 format)
+</ParamField>
+
+### Response
+
+<ResponseField name="data" type="array">
+  Array of event objects (see Event Object schema above)
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "data": [
+    {
+      "id": "1",
+      "title": "Team Meeting",
+      "description": "Monthly team sync",
+      "start": "2024-03-15T10:00:00Z",
+      "end": "2024-03-15T11:00:00Z",
+      "allDay": false,
+      "color": "#1976d2"
+    },
+    {
+      "id": "2",
+      "title": "John's Birthday",
+      "description": "Employee birthday celebration",
+      "start": "2024-03-20",
+      "end": "2024-03-20",
+      "allDay": true,
+      "color": "#ff9800"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+## Create Event
+
+<RequestExample>
+```bash POST /events
+curl -X POST "${VITE_BASE_URL}/events" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Client Meeting",
+    "description": "Product demo with new client",
+    "start": "2024-03-25T14:00:00Z",
+    "end": "2024-03-25T15:00:00Z",
+    "color": "#4caf50"
+  }'
+```
+</RequestExample>
+
+Creates a new calendar event.
+
+**Authentication Required:** Yes
+
+### Request Body
+
+<ParamField body="title" type="string" required>
+  Event title
+</ParamField>
+
+<ParamField body="description" type="string">
+  Event description or notes
+</ParamField>
+
+<ParamField body="start" type="string" required>
+  Event start date/time (ISO 8601 format)
+</ParamField>
+
+<ParamField body="end" type="string" required>
+  Event end date/time (ISO 8601 format)
+</ParamField>
+
+<ParamField body="allDay" type="boolean">
+  Whether the event is an all-day event
+</ParamField>
+
+<ParamField body="color" type="string">
+  Event color (hex color code)
+</ParamField>
+
+### Response
+
+<ResponseField name="data" type="object">
+  The created event object with assigned ID
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "data": {
+    "id": "3",
+    "title": "Client Meeting",
+    "description": "Product demo with new client",
+    "start": "2024-03-25T14:00:00Z",
+    "end": "2024-03-25T15:00:00Z",
+    "allDay": false,
+    "color": "#4caf50"
+  }
+}
+```
+</ResponseExample>
+
+---
+
+## Update Event
+
+<RequestExample>
+```bash PUT /events/:id
+curl -X PUT "${VITE_BASE_URL}/events/3" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Client Meeting - Rescheduled",
+    "start": "2024-03-26T14:00:00Z",
+    "end": "2024-03-26T15:00:00Z"
+  }'
+```
+</RequestExample>
+
+Updates an existing calendar event. Supports drag-and-drop rescheduling.
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  Event ID
+</ParamField>
+
+### Request Body
+
+All fields from the Event Object are optional. Only provided fields will be updated.
+
+### Response
+
+<ResponseField name="data" type="object">
+  The updated event object
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "data": {
+    "id": "3",
+    "title": "Client Meeting - Rescheduled",
+    "description": "Product demo with new client",
+    "start": "2024-03-26T14:00:00Z",
+    "end": "2024-03-26T15:00:00Z",
+    "allDay": false,
+    "color": "#4caf50"
+  }
+}
+```
+</ResponseExample>
+
+---
+
+## Delete Event
+
+<RequestExample>
+```bash DELETE /events/:id
+curl -X DELETE "${VITE_BASE_URL}/events/3" \
+  -H "Authorization: Bearer <token>"
+```
+</RequestExample>
+
+Deletes a calendar event permanently.
+
+**Authentication Required:** Yes
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  Event ID
+</ParamField>
+
+### Response
+
+<ResponseField name="message" type="string">
+  Success confirmation message
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "message": "Event deleted successfully"
+}
+```
+</ResponseExample>
+
+---
+
+## Integration
+
+### Service Functions
+
+The event service (`src/services/event.service.ts`) provides TypeScript functions for working with calendar events:
+
+```typescript
+import { getEvents, createEvent, updateEvent, deleteEvent, CalendarEvent } from '@/services/event.service';
+
+// List events with date range
+const response = await getEvents('2024-01-01', '2024-12-31');
+
+// Create event
+const newEvent: CalendarEvent = {
+  title: 'Team Meeting',
+  start: new Date('2024-03-15T10:00:00Z'),
+  end: new Date('2024-03-15T11:00:00Z'),
+  color: '#1976d2'
+};
+await createEvent(newEvent);
+
+// Update event
+await updateEvent('1', { title: 'Updated Meeting Title' });
+
+// Delete event
+await deleteEvent('1');
+```
+
+### FullCalendar Integration
+
+Events are displayed using FullCalendar with Spanish localization (`src/pages/Calendar/Calendar.tsx:18-42`).
+
+<Note>
+  The calendar supports drag-and-drop event rescheduling, which automatically calls the update API.
+</Note>
+
+<Info>
+  Employee birthdays are automatically displayed on the calendar and show a celebration modal with confetti animation when clicked.
+</Info>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Calendar Feature" icon="calendar" href="/features/calendar">
+    Learn about the calendar user interface
+  </Card>
+  <Card title="Employees" icon="users" href="/features/employees">
+    Employee birthdays appear on the calendar
+  </Card>
+</CardGroup>

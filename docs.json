@@ -96,7 +96,8 @@
               "api/employees",
               "api/users-roles",
               "api/catalogs",
-              "api/inventory"
+              "api/inventory",
+              "api/events"
             ]
           }
         ]
